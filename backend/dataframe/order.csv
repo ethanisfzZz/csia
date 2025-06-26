@@ -1,2 +1,1 @@
-id,datetime,rsi
-1,12-6-25,34
+datetime, side, price, quantity
