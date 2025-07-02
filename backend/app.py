@@ -31,7 +31,8 @@ def main_loop():
 
 
 
-        sleep(30)
+        sleep(3600)
+
         break
 
 
@@ -42,3 +43,5 @@ if __name__ == '__main__':
 
     # Start our API
     app.run(debug=True)
+
+    # make synchronize

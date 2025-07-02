@@ -1,3 +1,3 @@
-datetime, price, volume, macd, signal_line, trade_signal
+datetime, price, volume, rsi, macd, signal_line
 
 # MACD and signal line is not fetchable, so it would need to be calcualted
