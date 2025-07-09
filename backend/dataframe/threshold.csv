@@ -1,1 +1,1 @@
-trade_size,  rsi_buy_threshold, rsi_sell_threshold, macd_buy_threshold, macd_sell_threshold, position_size_usdt, active
+trade_size, stop_loss, stop_profit, rsi_buy_threshold, rsi_sell_threshold, macd_buy_threshold, macd_sell_threshold, position_size_usdt, active

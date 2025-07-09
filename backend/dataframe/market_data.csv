@@ -1,3 +1,2 @@
-datetime, price, volume, rsi, macd, signal_line
-
-# MACD and signal line is not fetchable, so it would need to be calcualted
+datetime,price,volume,rsi,macd,signal_line
+2025-07-09T17:03:52.369798,108653.84,8214.09719,,,
