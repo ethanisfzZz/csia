@@ -280,6 +280,72 @@ body {
     to { transform: rotate(360deg); }
 }
 
+/* Trades Section Styles */
+.trades-section {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(30, 41, 59, 0.9) 100%);
+}
+
+.trades-table-container {
+    background: rgba(15, 23, 42, 0.5);
+    border-radius: 12px;
+    border: 1px solid rgba(71, 85, 105, 0.2);
+    overflow: auto;
+    max-height: 400px;
+    min-height: 200px;
+}
+
+.trades-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.trades-table th {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid rgba(71, 85, 105, 0.2);
+    background: rgba(15, 23, 42, 0.8);
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #cbd5e1;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    position: sticky;
+    top: 0;
+}
+
+.trades-table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid rgba(71, 85, 105, 0.2);
+    font-size: 0.9rem;
+    color: #e2e8f0;
+}
+
+.trades-table tbody tr:hover {
+    background: rgba(71, 85, 105, 0.1);
+}
+
+.trade-side {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.trade-side.buy {
+    background: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.trade-side.sell {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
 @media (max-width: 768px) {
     .title {
         font-size: 2rem;
@@ -297,5 +363,13 @@ body {
     .btn {
         width: 100%;
         max-width: 200px;
+    }
+
+    .trades-table-container {
+        overflow-x: auto;
+    }
+
+    .trades-table {
+        min-width: 600px;
     }
 }

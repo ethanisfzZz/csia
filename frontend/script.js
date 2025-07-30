@@ -20,8 +20,11 @@ const API_BASE_URL = 'http://localhost:5000';
 document.addEventListener('DOMContentLoaded', function() {
     loadConfiguration();
     checkStatus();
+    loadTrades();
     // Check status every 10 seconds
     setInterval(checkStatus, 10000);
+    // Refresh trades every 30 seconds
+    setInterval(loadTrades, 30000);
 });
 
 /**
@@ -42,8 +45,29 @@ async function checkStatus() {
         const startBtn = document.getElementById('startBtn');
         const stopBtn = document.getElementById('stopBtn');
         
+        // Debug log to see the actual response structure
+        console.log('Status response:', data);
+        
         if (data.status === 'running') {
-            statusText.textContent = 'Running';
+            // Check if indicators are ready
+            if (data.indicators) {
+                if (!data.indicators.available) {
+                    // Get current data count and required amount
+                    const current = data.data_stats?.total_records || data.data_stats?.cached_records || 0;
+                    const required = data.indicators.min_required || 0;
+                    statusText.textContent = `Collecting data (${current}/${required})`;
+                } else {
+                    statusText.textContent = 'Running';
+                }
+            } else {
+                // Fallback if indicators field doesn't exist
+                const current = data.data_stats?.total_records || data.data_stats?.cached_records || 0;
+                if (current < 26) { // Default minimum requirement
+                    statusText.textContent = `Collecting data (${current}/26)`;
+                } else {
+                    statusText.textContent = 'Running';
+                }
+            }
             statusIndicator.classList.add('running');
             startBtn.disabled = true;
             stopBtn.disabled = false;
@@ -57,6 +81,7 @@ async function checkStatus() {
         hideMessage('controlMessage');
         
     } catch (error) {
+        console.error('Status check error:', error);
         document.getElementById('statusText').textContent = 'Offline';
         document.getElementById('statusIndicator').classList.remove('running');
         
@@ -66,6 +91,61 @@ async function checkStatus() {
             window.lastConnectionCheck = Date.now();
         }
     }
+}
+
+/**
+ * Load and display trades from the backend
+ */
+async function loadTrades() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/trades`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        updateTradesTable(data.trades);
+        
+    } catch (error) {
+        console.error('Error loading trades:', error);
+    }
+}
+
+/**
+ * Update trades table with trade data
+ */
+function updateTradesTable(trades) {
+    const tableBody = document.getElementById('tradesTableBody');
+    
+    // Clear existing rows
+    tableBody.innerHTML = '';
+    
+    if (!trades || trades.length === 0) {
+        return;
+    }
+    
+    // Add trades (most recent first)
+    trades.reverse().forEach(trade => {
+        const row = document.createElement('tr');
+        
+        const formattedDate = new Date(trade.datetime).toLocaleString();
+        const sideClass = trade.side.toLowerCase();
+        const formattedPrice = `$${trade.price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        const formattedQuantity = trade.quantity.toFixed(6);
+        const formattedTradeSize = trade.trade_size.toFixed(6);
+        
+        row.innerHTML = `
+            <td>${formattedDate}</td>
+            <td><span class="trade-side ${sideClass}">${trade.side}</span></td>
+            <td>${formattedPrice}</td>
+            <td>${formattedQuantity}</td>
+            <td>${formattedTradeSize}</td>
+        `;
+        
+        tableBody.appendChild(row);
+    });
 }
 
 /**
