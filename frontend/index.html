@@ -6,7 +6,6 @@
     <title>Ethan CompSci IA: Crypto Trading Bot!</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.26.0/plotly.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -38,15 +37,20 @@
         <div class="card visualization-section">
             <h2 class="section-title">Trading Performance Visualization</h2>
             
-            <div class="viz-controls">
-                <button class="btn btn-secondary" onclick="refreshVisualization()">
-                    <span id="refreshText">Refresh Chart</span>
-                </button>
-            </div>
-            
             <div class="chart-wrapper">
                 <h3 class="chart-title">Bitcoin Price & Trading Activity</h3>
-                <div id="priceChart" class="chart-container"></div>
+                <div id="priceChart" class="chart-container">
+                    <div style="
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        height: 400px;
+                        color: #94a3b8;
+                        font-size: 14px;
+                    ">
+                        Initializing chart system...
+                    </div>
+                </div>
             </div>
             
             <div class="message" id="vizMessage"></div>
@@ -68,7 +72,9 @@
                         </tr>
                     </thead>
                     <tbody id="tradesTableBody">
-                        <!-- Trades will be populated here -->
+                        <tr>
+                            <td colspan="5" style="text-align: center; color: #64748b;">Loading trades...</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -82,61 +88,61 @@
                 <div class="config-grid">
                     <div class="input-group">
                         <label class="input-label" for="tradeSize">Trade Size</label>
-                        <input type="number" class="input-field" id="tradeSize" step="0.001" min="0.001" max="1">
+                        <input type="number" class="input-field" id="tradeSize" step="0.001" min="0.001" max="1" value="0.01">
                         <div class="input-description">Amount of cryptocurrency to trade (0.001 - 1.0)</div>
                     </div>
                     
                     <div class="input-group">
                         <label class="input-label" for="stopLoss">Stop Loss (%)</label>
-                        <input type="number" class="input-field" id="stopLoss" step="0.1" min="0.5" max="10">
+                        <input type="number" class="input-field" id="stopLoss" step="0.1" min="0.5" max="10" value="2.0">
                         <div class="input-description">Maximum loss percentage before auto-sell (0.5% - 10%)</div>
                     </div>
                     
                     <div class="input-group">
                         <label class="input-label" for="stopProfit">Take Profit (%)</label>
-                        <input type="number" class="input-field" id="stopProfit" step="0.1" min="0.5" max="15">
+                        <input type="number" class="input-field" id="stopProfit" step="0.1" min="0.5" max="15" value="2.5">
                         <div class="input-description">Target profit percentage for auto-sell (0.5% - 15%)</div>
                     </div>
                     
                     <div class="input-group">
                         <label class="input-label" for="rsiBuy">RSI Buy Threshold</label>
-                        <input type="number" class="input-field" id="rsiBuy" min="10" max="40">
+                        <input type="number" class="input-field" id="rsiBuy" min="10" max="40" value="30">
                         <div class="input-description">RSI level to trigger buy signal (10 - 40)</div>
                     </div>
                     
                     <div class="input-group">
                         <label class="input-label" for="rsiSell">RSI Sell Threshold</label>
-                        <input type="number" class="input-field" id="rsiSell" min="60" max="90">
+                        <input type="number" class="input-field" id="rsiSell" min="60" max="90" value="70">
                         <div class="input-description">RSI level to trigger sell signal (60 - 90)</div>
                     </div>
                     
                     <div class="input-group">
                         <label class="input-label" for="macdBuy">MACD Buy Threshold</label>
-                        <input type="number" class="input-field" id="macdBuy" step="0.001" min="-0.01" max="0.01">
+                        <input type="number" class="input-field" id="macdBuy" step="0.001" min="-0.01" max="0.01" value="0.0">
                         <div class="input-description">MACD level for buy signals (-0.01 - 0.01)</div>
                     </div>
                     
                     <div class="input-group">
                         <label class="input-label" for="macdSell">MACD Sell Threshold</label>
-                        <input type="number" class="input-field" id="macdSell" step="0.001" min="-0.01" max="0.01">
+                        <input type="number" class="input-field" id="macdSell" step="0.001" min="-0.01" max="0.01" value="0.0">
                         <div class="input-description">MACD level for sell signals (-0.01 - 0.01)</div>
                     </div>
                     
                     <div class="input-group">
                         <label class="input-label" for="positionSize">Position Size (USD)</label>
-                        <input type="number" class="input-field" id="positionSize" min="10" max="10000">
+                        <input type="number" class="input-field" id="positionSize" min="10" max="10000" value="100">
                         <div class="input-description">Maximum USD amount per position ($10 - $10,000)</div>
                     </div>
                     
                     <div class="input-group">
                         <label class="input-label" for="loopInterval">Loop Interval (seconds)</label>
-                        <input type="number" class="input-field" id="loopInterval" min="30" max="300">
+                        <input type="number" class="input-field" id="loopInterval" min="30" max="300" value="60">
                         <div class="input-description">Time between trading decisions (30 - 300 seconds)</div>
                     </div>
                     
                     <div class="input-group">
                         <label class="input-label" for="indicatorWindow">Indicator Window</label>
-                        <input type="number" class="input-field" id="indicatorWindow" min="10" max="50">
+                        <input type="number" class="input-field" id="indicatorWindow" min="10" max="50" value="26">
                         <div class="input-description">Period for technical indicators (10 - 50)</div>
                     </div>
                     
@@ -164,6 +170,49 @@
         </div>
     </div>
 
-    <script src="seaborn.js"></script>
+    <!-- Load Plotly first -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.26.0/plotly.min.js"></script>
+    
+    <!-- Load application scripts -->
+    <script src="script.js"></script>
+    <script src="chart-manager.js"></script>
+    
+    <!-- Initialize everything when page loads -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Page loaded, initializing application...');
+            
+            // Check if Plotly loaded successfully
+            if (typeof Plotly === 'undefined') {
+                console.error('❌ Plotly failed to load');
+                const chartContainer = document.getElementById('priceChart');
+                if (chartContainer) {
+                    chartContainer.innerHTML = `
+                        <div style="
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            justify-content: center;
+                            height: 400px;
+                            color: #ef4444;
+                            text-align: center;
+                            padding: 20px;
+                        ">
+                            <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
+                            <div style="font-size: 18px; font-weight: 600; margin-bottom: 10px;">
+                                Chart Library Failed to Load
+                            </div>
+                            <div style="font-size: 14px; color: #94a3b8;">
+                                Check your internet connection and refresh the page
+                            </div>
+                        </div>
+                    `;
+                }
+            } else {
+                console.log('✅ Plotly loaded, initializing chart manager...');
+                initializeChartManager('http://localhost:5000');
+            }
+        });
+    </script>
 </body>
 </html>

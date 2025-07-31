@@ -1,4 +1,10 @@
-// Default configuration values (matching the backend defaults)
+/**
+ * Main application script for crypto trading bot frontend
+ * Handles core functionality: status checking, trade loading, configuration
+ * Now syncs with backend loop_interval for optimal refresh timing
+ */
+
+// Configuration constants
 const DEFAULT_CONFIG = {
     tradeSize: 0.01,
     stopLoss: 2.0,
@@ -13,19 +19,91 @@ const DEFAULT_CONFIG = {
     active: 1
 };
 
-// API base URL - change this to match your backend
+// API configuration
 const API_BASE_URL = 'http://localhost:5000';
 
-// Check status when page loads
+// Application state
+let lastConnectionCheck = null;
+let currentLoopInterval = 60; // Will be updated from backend
+let statusCheckInterval = null;
+let tradesRefreshInterval = null;
+
+/**
+ * Initialize application when DOM is ready
+ */
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Main application initializing...');
+    
+    // Load initial data
     loadConfiguration();
     checkStatus();
     loadTrades();
-    // Check status every 10 seconds
-    setInterval(checkStatus, 10000);
-    // Refresh trades every 30 seconds
-    setInterval(loadTrades, 30000);
+    
+    // Setup dynamic intervals based on backend configuration
+    setupDynamicRefresh();
+    
+    console.log('✅ Main application initialized');
 });
+
+/**
+ * Setup refresh intervals that sync with backend configuration
+ */
+async function setupDynamicRefresh() {
+    // Get initial loop interval from backend
+    await updateLoopInterval();
+    
+    // Setup status checking (every 10 seconds - independent of loop interval)
+    statusCheckInterval = setInterval(checkStatus, 10000);
+    
+    // Setup trades refresh based on loop interval
+    setupTradesRefresh();
+    
+    // Check for loop interval changes every 2 minutes
+    setInterval(updateLoopInterval, 120000);
+    
+    console.log(`⏱️ Dynamic refresh setup complete - trades refresh every ${currentLoopInterval + 10}s`);
+}
+
+/**
+ * Update loop interval from backend configuration
+ */
+async function updateLoopInterval() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/parameters`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.current_parameters && data.current_parameters.loop_interval) {
+                const newInterval = data.current_parameters.loop_interval;
+                
+                if (newInterval !== currentLoopInterval) {
+                    console.log(`⏱️ Loop interval updated: ${currentLoopInterval}s → ${newInterval}s`);
+                    currentLoopInterval = newInterval;
+                    
+                    // Restart trades refresh with new interval
+                    setupTradesRefresh();
+                }
+            }
+        }
+    } catch (error) {
+        console.log('Using default loop interval:', currentLoopInterval);
+    }
+}
+
+/**
+ * Setup trades refresh interval based on current loop interval
+ */
+function setupTradesRefresh() {
+    // Clear existing interval
+    if (tradesRefreshInterval) {
+        clearInterval(tradesRefreshInterval);
+    }
+    
+    // Refresh trades slightly after backend updates (add 10s buffer)
+    const refreshRate = (currentLoopInterval + 10) * 1000;
+    
+    tradesRefreshInterval = setInterval(loadTrades, refreshRate);
+    console.log(`📈 Trades refresh set to every ${currentLoopInterval + 10} seconds`);
+}
 
 /**
  * Check the current status of the trading bot
@@ -39,58 +117,73 @@ async function checkStatus() {
         }
         
         const data = await response.json();
-        
-        const statusText = document.getElementById('statusText');
-        const statusIndicator = document.getElementById('statusIndicator');
-        const startBtn = document.getElementById('startBtn');
-        const stopBtn = document.getElementById('stopBtn');
-        
-        // Debug log to see the actual response structure
-        console.log('Status response:', data);
-        
-        if (data.status === 'running') {
-            // Check if indicators are ready
-            if (data.indicators) {
-                if (!data.indicators.available) {
-                    // Get current data count and required amount
-                    const current = data.data_stats?.total_records || data.data_stats?.cached_records || 0;
-                    const required = data.indicators.min_required || 0;
-                    statusText.textContent = `Collecting data (${current}/${required})`;
-                } else {
-                    statusText.textContent = 'Running';
-                }
-            } else {
-                // Fallback if indicators field doesn't exist
-                const current = data.data_stats?.total_records || data.data_stats?.cached_records || 0;
-                if (current < 26) { // Default minimum requirement
-                    statusText.textContent = `Collecting data (${current}/26)`;
-                } else {
-                    statusText.textContent = 'Running';
-                }
-            }
-            statusIndicator.classList.add('running');
-            startBtn.disabled = true;
-            stopBtn.disabled = false;
-        } else {
-            statusText.textContent = 'Stopped';
-            statusIndicator.classList.remove('running');
-            startBtn.disabled = false;
-            stopBtn.disabled = true;
-        }
-        
+        updateStatusDisplay(data);
         hideMessage('controlMessage');
         
     } catch (error) {
         console.error('Status check error:', error);
-        document.getElementById('statusText').textContent = 'Offline';
-        document.getElementById('statusIndicator').classList.remove('running');
-        
-        // Only show connection error if it's the first check or if it's been a while
-        if (!window.lastConnectionCheck || Date.now() - window.lastConnectionCheck > 30000) {
-            showMessage('controlMessage', 'Backend not running. Start the Python backend to connect.', 'warning');
-            window.lastConnectionCheck = Date.now();
-        }
+        handleStatusError();
     }
+}
+
+/**
+ * Update status display elements with enhanced information
+ */
+function updateStatusDisplay(data) {
+    const statusText = document.getElementById('statusText');
+    const statusIndicator = document.getElementById('statusIndicator');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    
+    console.log('Status response:', data);
+    
+    if (data.status === 'running') {
+        // Check if indicators are ready
+        if (data.indicators && typeof data.indicators.available !== 'undefined') {
+            if (!data.indicators.available) {
+                const current = data.data_stats?.total_records || data.data_stats?.cached_records || 0;
+                const required = data.indicators.min_required || 26;
+                statusText.textContent = `Collecting data (${current}/${required}) - Next update in ${currentLoopInterval}s`;
+            } else {
+                statusText.textContent = `Running - Updates every ${currentLoopInterval}s`;
+            }
+        } else {
+            // Fallback logic
+            const current = data.data_stats?.total_records || data.data_stats?.cached_records || 0;
+            if (current < 26) {
+                statusText.textContent = `Collecting data (${current}/26) - Next update in ${currentLoopInterval}s`;
+            } else {
+                statusText.textContent = `Running - Updates every ${currentLoopInterval}s`;
+            }
+        }
+        
+        statusIndicator.classList.add('running');
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+    } else {
+        statusText.textContent = 'Stopped';
+        statusIndicator.classList.remove('running');
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+    }
+}
+
+/**
+ * Handle status check errors
+ */
+function handleStatusError() {
+    document.getElementById('statusText').textContent = 'Backend Offline';
+    document.getElementById('statusIndicator').classList.remove('running');
+    
+    // Show connection error message (throttled)
+    if (!lastConnectionCheck || Date.now() - lastConnectionCheck > 30000) {
+        showMessage('controlMessage', 'Backend not running. Start Python backend (main.py) to connect.', 'warning');
+        lastConnectionCheck = Date.now();
+    }
+    
+    // Reset buttons when backend is offline
+    document.getElementById('startBtn').disabled = false;
+    document.getElementById('stopBtn').disabled = true;
 }
 
 /**
@@ -105,11 +198,15 @@ async function loadTrades() {
         }
         
         const data = await response.json();
-        
         updateTradesTable(data.trades);
         
+        // Log when trades are updated
+        if (data.trades && data.trades.length > 0) {
+            console.log(`📈 Trades table updated with ${data.trades.length} trades`);
+        }
+        
     } catch (error) {
-        console.error('Error loading trades:', error);
+        console.log('Trades not available:', error.message);
     }
 }
 
@@ -123,6 +220,9 @@ function updateTradesTable(trades) {
     tableBody.innerHTML = '';
     
     if (!trades || trades.length === 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = '<td colspan="5" style="text-align: center; color: #64748b;">No trades yet</td>';
+        tableBody.appendChild(row);
         return;
     }
     
@@ -132,7 +232,10 @@ function updateTradesTable(trades) {
         
         const formattedDate = new Date(trade.datetime).toLocaleString();
         const sideClass = trade.side.toLowerCase();
-        const formattedPrice = `$${trade.price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        const formattedPrice = `${trade.price.toLocaleString('en-US', {
+            minimumFractionDigits: 2, 
+            maximumFractionDigits: 2
+        })}`;
         const formattedQuantity = trade.quantity.toFixed(6);
         const formattedTradeSize = trade.trade_size.toFixed(6);
         
@@ -149,14 +252,14 @@ function updateTradesTable(trades) {
 }
 
 /**
- * Start the trading bot (Note: Bot actually starts when backend runs)
+ * Start the trading bot
  */
-async function startBot() {
+function startBot() {
     showMessage('controlMessage', 'The bot starts automatically when you run the Python backend (main.py)', 'warning');
 }
 
 /**
- * Stop the trading bot - Now properly shuts down the entire application
+ * Stop the trading bot
  */
 async function stopBot() {
     const stopBtn = document.getElementById('stopBtn');
@@ -180,6 +283,10 @@ async function stopBot() {
         const data = await response.json();
         
         showMessage('controlMessage', 'Bot shutdown initiated! The application will terminate in 2 seconds.', 'success');
+        
+        // Clear all intervals when stopping
+        if (statusCheckInterval) clearInterval(statusCheckInterval);
+        if (tradesRefreshInterval) clearInterval(tradesRefreshInterval);
         
         // Update UI to show stopped state immediately
         setTimeout(() => {
@@ -214,8 +321,13 @@ async function loadConfiguration() {
         const data = await response.json();
         
         if (data.current_parameters) {
-            const params = data.current_parameters;
-            populateFormFields(params);
+            populateFormFields(data.current_parameters);
+            
+            // Update current loop interval from loaded config
+            if (data.current_parameters.loop_interval) {
+                currentLoopInterval = data.current_parameters.loop_interval;
+                console.log(`⏱️ Loaded loop interval: ${currentLoopInterval}s`);
+            }
         } else {
             resetToDefaults();
         }
@@ -262,7 +374,7 @@ function resetToDefaults() {
 }
 
 /**
- * Save configuration directly to the backend's threshold.csv file
+ * Save configuration to the backend
  */
 async function saveConfiguration() {
     const saveText = document.getElementById('saveText');
@@ -271,15 +383,12 @@ async function saveConfiguration() {
     saveText.innerHTML = '<span class="loading"></span> Saving...';
     
     try {
-        // Get form values
         const config = getFormConfiguration();
 
-        // Validate configuration
         if (!validateConfiguration(config)) {
             return;
         }
 
-        // Send configuration to backend
         const response = await fetch(`${API_BASE_URL}/save-config`, {
             method: 'POST',
             headers: {
@@ -295,8 +404,19 @@ async function saveConfiguration() {
 
         const result = await response.json();
         
+        // Update local loop interval if it changed
+        if (config.loop_interval !== currentLoopInterval) {
+            console.log(`⏱️ Loop interval will change: ${currentLoopInterval}s → ${config.loop_interval}s`);
+            currentLoopInterval = config.loop_interval;
+            
+            // Restart refresh intervals with new timing
+            setTimeout(() => {
+                setupDynamicRefresh();
+            }, 1000);
+        }
+        
         showMessage('configMessage', 
-            'Configuration saved successfully to backend! Changes will take effect on the next trading loop iteration.', 
+            `Configuration saved! Loop interval: ${config.loop_interval}s. Changes take effect on next trading cycle.`, 
             'success'
         );
         
@@ -339,7 +459,7 @@ function validateConfiguration(config) {
         }
     }
 
-    // Basic validation
+    // Basic validation rules
     if (config.rsi_buy_threshold >= config.rsi_sell_threshold) {
         showMessage('configMessage', 'RSI buy threshold must be less than sell threshold', 'error');
         return false;
@@ -389,13 +509,15 @@ function validateConfiguration(config) {
  */
 function showMessage(elementId, text, type) {
     const messageDiv = document.getElementById(elementId);
-    messageDiv.textContent = text;
-    messageDiv.className = `message ${type}`;
-    messageDiv.style.display = 'block';
-    
-    // Auto-hide success messages after 8 seconds
-    if (type === 'success') {
-        setTimeout(() => hideMessage(elementId), 8000);
+    if (messageDiv) {
+        messageDiv.textContent = text;
+        messageDiv.className = `message ${type}`;
+        messageDiv.style.display = 'block';
+        
+        // Auto-hide success messages after 8 seconds
+        if (type === 'success') {
+            setTimeout(() => hideMessage(elementId), 8000);
+        }
     }
 }
 
@@ -404,5 +526,24 @@ function showMessage(elementId, text, type) {
  */
 function hideMessage(elementId) {
     const messageDiv = document.getElementById(elementId);
-    messageDiv.style.display = 'none';
+    if (messageDiv) {
+        messageDiv.style.display = 'none';
+    }
 }
+
+/**
+ * Get current refresh timing information for debugging
+ */
+function getRefreshInfo() {
+    return {
+        currentLoopInterval: currentLoopInterval,
+        statusCheckInterval: !!statusCheckInterval,
+        tradesRefreshInterval: !!tradesRefreshInterval,
+        tradesRefreshRate: currentLoopInterval + 10
+    };
+}
+
+// Export refresh info for debugging
+window.getRefreshInfo = getRefreshInfo;
+
+console.log('🚀 Main application script loaded!');
