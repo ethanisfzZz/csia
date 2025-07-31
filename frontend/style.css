@@ -280,6 +280,45 @@ body {
     to { transform: rotate(360deg); }
 }
 
+/* Visualization Section Styles */
+.visualization-section {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(30, 41, 59, 0.9) 100%);
+}
+
+.viz-controls {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.chart-wrapper {
+    background: rgba(15, 23, 42, 0.5);
+    border-radius: 12px;
+    border: 1px solid rgba(71, 85, 105, 0.2);
+    padding: 20px;
+    overflow: hidden;
+}
+
+.chart-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #cbd5e1;
+    margin-bottom: 16px;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.chart-container {
+    width: 100%;
+    height: 400px;
+    background: rgba(15, 23, 42, 0.3);
+    border-radius: 8px;
+    border: 1px solid rgba(71, 85, 105, 0.2);
+}
+
 /* Trades Section Styles */
 .trades-section {
     background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(30, 41, 59, 0.9) 100%);
@@ -355,7 +394,7 @@ body {
         grid-template-columns: 1fr;
     }
     
-    .control-buttons, .config-actions {
+    .control-buttons, .config-actions, .viz-controls {
         flex-direction: column;
         align-items: center;
     }
@@ -371,5 +410,9 @@ body {
 
     .trades-table {
         min-width: 600px;
+    }
+
+    .chart-container {
+        height: 300px;
     }
 }

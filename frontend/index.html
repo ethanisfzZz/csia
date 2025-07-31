@@ -6,6 +6,7 @@
     <title>Ethan CompSci IA: Crypto Trading Bot!</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.26.0/plotly.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -31,6 +32,24 @@
             </div>
             
             <div class="message" id="controlMessage"></div>
+        </div>
+
+        <!-- Trading Visualization Section -->
+        <div class="card visualization-section">
+            <h2 class="section-title">Trading Performance Visualization</h2>
+            
+            <div class="viz-controls">
+                <button class="btn btn-secondary" onclick="refreshVisualization()">
+                    <span id="refreshText">Refresh Chart</span>
+                </button>
+            </div>
+            
+            <div class="chart-wrapper">
+                <h3 class="chart-title">Bitcoin Price & Trading Activity</h3>
+                <div id="priceChart" class="chart-container"></div>
+            </div>
+            
+            <div class="message" id="vizMessage"></div>
         </div>
 
         <!-- Trading History Section -->
@@ -145,6 +164,6 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script src="seaborn.js"></script>
 </body>
 </html>

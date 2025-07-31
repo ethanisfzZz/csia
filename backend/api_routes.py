@@ -325,3 +325,20 @@ def register_routes(app):
             })
         except Exception as e:
             return jsonify({"error": f"Error getting parameters: {str(e)}"}), 500
+    
+    @app.route('/market-data')
+    def get_market_data():
+        """Get recent market data for visualization"""
+        try:
+            historical_data = get_historical_data()
+            
+            # Return last 100 records for visualization
+            recent_data = historical_data[-100:] if len(historical_data) > 100 else historical_data
+            
+            return jsonify({
+                "data": recent_data,
+                "count": len(recent_data),
+                "total_available": len(historical_data)
+            })
+        except Exception as e:
+            return jsonify({"error": f"Error getting market data: {str(e)}"}), 500
