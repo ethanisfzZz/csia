@@ -1,7 +1,5 @@
 /**
- * Main application script for crypto trading bot frontend
- * Handles core functionality: status checking, trade loading, configuration
- * Now syncs with backend loop_interval for optimal refresh timing
+ * Main application script for crypto trading bot frontend with authentication
  */
 
 // Configuration constants
@@ -19,14 +17,62 @@ const DEFAULT_CONFIG = {
     active: 1
 };
 
-// API configuration
 const API_BASE_URL = 'http://localhost:5000';
 
 // Application state
 let lastConnectionCheck = null;
-let currentLoopInterval = 60; // Will be updated from backend
+let currentLoopInterval = 60;
 let statusCheckInterval = null;
 let tradesRefreshInterval = null;
+
+/**
+ * Get authentication headers for API calls
+ */
+function getAuthHeaders() {
+    const token = sessionStorage.getItem('authToken');
+    return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+    };
+}
+
+/**
+ * Handle authentication errors
+ */
+function handleAuthError(response) {
+    if (response.status === 401) {
+        console.log('🔐 Authentication expired, redirecting to login...');
+        sessionStorage.removeItem('authToken');
+        sessionStorage.removeItem('username');
+        window.location.href = 'login.html';
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Make authenticated API request
+ */
+async function authenticatedFetch(url, options = {}) {
+    const authHeaders = getAuthHeaders();
+    
+    const requestOptions = {
+        ...options,
+        headers: {
+            ...authHeaders,
+            ...options.headers
+        }
+    };
+    
+    console.log('📡 Making authenticated request to:', url);
+    const response = await fetch(url, requestOptions);
+    
+    if (handleAuthError(response)) {
+        throw new Error('Authentication failed');
+    }
+    
+    return response;
+}
 
 /**
  * Initialize application when DOM is ready
@@ -34,83 +80,66 @@ let tradesRefreshInterval = null;
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Main application initializing...');
     
-    // Load initial data
-    loadConfiguration();
-    checkStatus();
-    loadTrades();
-    
-    // Setup dynamic intervals based on backend configuration
-    setupDynamicRefresh();
-    
-    console.log('✅ Main application initialized');
+    if (sessionStorage.getItem('authToken')) {
+        loadConfiguration();
+        checkStatus();
+        loadTrades();
+        setupDynamicRefresh();
+        console.log('✅ Main application initialized');
+    }
 });
 
 /**
- * Setup refresh intervals that sync with backend configuration
+ * Setup refresh intervals
  */
 async function setupDynamicRefresh() {
-    // Get initial loop interval from backend
     await updateLoopInterval();
-    
-    // Setup status checking (every 10 seconds - independent of loop interval)
     statusCheckInterval = setInterval(checkStatus, 10000);
-    
-    // Setup trades refresh based on loop interval
     setupTradesRefresh();
-    
-    // Check for loop interval changes every 2 minutes
     setInterval(updateLoopInterval, 120000);
-    
-    console.log(`⏱️ Dynamic refresh setup complete - trades refresh every ${currentLoopInterval + 10}s`);
+    console.log(`⏱️ Dynamic refresh setup complete`);
 }
 
 /**
- * Update loop interval from backend configuration
+ * Update loop interval from backend
  */
 async function updateLoopInterval() {
     try {
-        const response = await fetch(`${API_BASE_URL}/parameters`);
+        const response = await authenticatedFetch(`${API_BASE_URL}/parameters`);
         if (response.ok) {
             const data = await response.json();
             if (data.current_parameters && data.current_parameters.loop_interval) {
                 const newInterval = data.current_parameters.loop_interval;
-                
                 if (newInterval !== currentLoopInterval) {
                     console.log(`⏱️ Loop interval updated: ${currentLoopInterval}s → ${newInterval}s`);
                     currentLoopInterval = newInterval;
-                    
-                    // Restart trades refresh with new interval
                     setupTradesRefresh();
                 }
             }
         }
     } catch (error) {
-        console.log('Using default loop interval:', currentLoopInterval);
+        console.log('📊 Using default loop interval:', currentLoopInterval);
     }
 }
 
 /**
- * Setup trades refresh interval based on current loop interval
+ * Setup trades refresh interval
  */
 function setupTradesRefresh() {
-    // Clear existing interval
     if (tradesRefreshInterval) {
         clearInterval(tradesRefreshInterval);
     }
-    
-    // Refresh trades slightly after backend updates (add 10s buffer)
     const refreshRate = (currentLoopInterval + 10) * 1000;
-    
     tradesRefreshInterval = setInterval(loadTrades, refreshRate);
-    console.log(`📈 Trades refresh set to every ${currentLoopInterval + 10} seconds`);
+    console.log(`📈 Trades refresh: every ${currentLoopInterval + 10}s`);
 }
 
 /**
- * Check the current status of the trading bot
+ * Check bot status
  */
 async function checkStatus() {
     try {
-        const response = await fetch(`${API_BASE_URL}/status`);
+        const response = await authenticatedFetch(`${API_BASE_URL}/status`);
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
@@ -121,13 +150,13 @@ async function checkStatus() {
         hideMessage('controlMessage');
         
     } catch (error) {
-        console.error('Status check error:', error);
+        console.error('📡 Status check error:', error);
         handleStatusError();
     }
 }
 
 /**
- * Update status display elements with enhanced information
+ * Update status display
  */
 function updateStatusDisplay(data) {
     const statusText = document.getElementById('statusText');
@@ -135,26 +164,13 @@ function updateStatusDisplay(data) {
     const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
     
-    console.log('Status response:', data);
-    
     if (data.status === 'running') {
-        // Check if indicators are ready
-        if (data.indicators && typeof data.indicators.available !== 'undefined') {
-            if (!data.indicators.available) {
-                const current = data.data_stats?.total_records || data.data_stats?.cached_records || 0;
-                const required = data.indicators.min_required || 26;
-                statusText.textContent = `Collecting data (${current}/${required}) - Next update in ${currentLoopInterval}s`;
-            } else {
-                statusText.textContent = `Running - Updates every ${currentLoopInterval}s`;
-            }
+        if (data.indicators && !data.indicators.available) {
+            const current = data.data_stats?.total_records || 0;
+            const required = data.indicators.min_required || 26;
+            statusText.textContent = `Collecting data (${current}/${required})`;
         } else {
-            // Fallback logic
-            const current = data.data_stats?.total_records || data.data_stats?.cached_records || 0;
-            if (current < 26) {
-                statusText.textContent = `Collecting data (${current}/26) - Next update in ${currentLoopInterval}s`;
-            } else {
-                statusText.textContent = `Running - Updates every ${currentLoopInterval}s`;
-            }
+            statusText.textContent = `Running - Updates every ${currentLoopInterval}s`;
         }
         
         statusIndicator.classList.add('running');
@@ -169,29 +185,27 @@ function updateStatusDisplay(data) {
 }
 
 /**
- * Handle status check errors
+ * Handle status errors
  */
 function handleStatusError() {
     document.getElementById('statusText').textContent = 'Backend Offline';
     document.getElementById('statusIndicator').classList.remove('running');
     
-    // Show connection error message (throttled)
     if (!lastConnectionCheck || Date.now() - lastConnectionCheck > 30000) {
         showMessage('controlMessage', 'Backend not running. Start Python backend (main.py) to connect.', 'warning');
         lastConnectionCheck = Date.now();
     }
     
-    // Reset buttons when backend is offline
     document.getElementById('startBtn').disabled = false;
     document.getElementById('stopBtn').disabled = true;
 }
 
 /**
- * Load and display trades from the backend
+ * Load trades
  */
 async function loadTrades() {
     try {
-        const response = await fetch(`${API_BASE_URL}/trades`);
+        const response = await authenticatedFetch(`${API_BASE_URL}/trades`);
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
@@ -200,23 +214,20 @@ async function loadTrades() {
         const data = await response.json();
         updateTradesTable(data.trades);
         
-        // Log when trades are updated
         if (data.trades && data.trades.length > 0) {
-            console.log(`📈 Trades table updated with ${data.trades.length} trades`);
+            console.log(`📈 Trades updated: ${data.trades.length} trades`);
         }
         
     } catch (error) {
-        console.log('Trades not available:', error.message);
+        console.log('📈 Trades not available:', error.message);
     }
 }
 
 /**
- * Update trades table with trade data
+ * Update trades table
  */
 function updateTradesTable(trades) {
     const tableBody = document.getElementById('tradesTableBody');
-    
-    // Clear existing rows
     tableBody.innerHTML = '';
     
     if (!trades || trades.length === 0) {
@@ -226,40 +237,35 @@ function updateTradesTable(trades) {
         return;
     }
     
-    // Add trades (most recent first)
     trades.reverse().forEach(trade => {
         const row = document.createElement('tr');
-        
         const formattedDate = new Date(trade.datetime).toLocaleString();
         const sideClass = trade.side.toLowerCase();
         const formattedPrice = `${trade.price.toLocaleString('en-US', {
             minimumFractionDigits: 2, 
             maximumFractionDigits: 2
         })}`;
-        const formattedQuantity = trade.quantity.toFixed(6);
-        const formattedTradeSize = trade.trade_size.toFixed(6);
         
         row.innerHTML = `
             <td>${formattedDate}</td>
             <td><span class="trade-side ${sideClass}">${trade.side}</span></td>
             <td>${formattedPrice}</td>
-            <td>${formattedQuantity}</td>
-            <td>${formattedTradeSize}</td>
+            <td>${trade.quantity.toFixed(6)}</td>
+            <td>${trade.trade_size.toFixed(6)}</td>
         `;
-        
         tableBody.appendChild(row);
     });
 }
 
 /**
- * Start the trading bot
+ * Start bot
  */
 function startBot() {
     showMessage('controlMessage', 'The bot starts automatically when you run the Python backend (main.py)', 'warning');
 }
 
 /**
- * Stop the trading bot
+ * Stop bot
  */
 async function stopBot() {
     const stopBtn = document.getElementById('stopBtn');
@@ -269,26 +275,19 @@ async function stopBot() {
     stopText.innerHTML = '<span class="loading"></span> Stopping...';
     
     try {
-        const response = await fetch(`${API_BASE_URL}/end`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            }
+        const response = await authenticatedFetch(`${API_BASE_URL}/end`, {
+            method: 'POST'
         });
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
         
-        const data = await response.json();
+        showMessage('controlMessage', 'Bot shutdown initiated!', 'success');
         
-        showMessage('controlMessage', 'Bot shutdown initiated! The application will terminate in 2 seconds.', 'success');
-        
-        // Clear all intervals when stopping
         if (statusCheckInterval) clearInterval(statusCheckInterval);
         if (tradesRefreshInterval) clearInterval(tradesRefreshInterval);
         
-        // Update UI to show stopped state immediately
         setTimeout(() => {
             document.getElementById('statusText').textContent = 'Stopped';
             document.getElementById('statusIndicator').classList.remove('running');
@@ -297,9 +296,8 @@ async function stopBot() {
         }, 1000);
         
     } catch (error) {
-        showMessage('controlMessage', 'Failed to stop bot - make sure backend is running', 'error');
+        showMessage('controlMessage', 'Failed to stop bot', 'error');
     } finally {
-        // Reset button text after a delay
         setTimeout(() => {
             stopBtn.disabled = false;
             stopText.textContent = 'Stop Bot';
@@ -308,11 +306,12 @@ async function stopBot() {
 }
 
 /**
- * Load configuration from the backend
+ * Load configuration
  */
 async function loadConfiguration() {
     try {
-        const response = await fetch(`${API_BASE_URL}/parameters`);
+        console.log('⚙️ Loading configuration...');
+        const response = await authenticatedFetch(`${API_BASE_URL}/parameters`);
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
@@ -322,23 +321,21 @@ async function loadConfiguration() {
         
         if (data.current_parameters) {
             populateFormFields(data.current_parameters);
-            
-            // Update current loop interval from loaded config
             if (data.current_parameters.loop_interval) {
                 currentLoopInterval = data.current_parameters.loop_interval;
-                console.log(`⏱️ Loaded loop interval: ${currentLoopInterval}s`);
             }
+            console.log('✅ Configuration loaded');
         } else {
             resetToDefaults();
         }
     } catch (error) {
-        console.log('Could not load configuration from backend, using defaults');
+        console.log('⚙️ Could not load configuration, using defaults');
         resetToDefaults();
     }
 }
 
 /**
- * Populate form fields with configuration data
+ * Populate form fields
  */
 function populateFormFields(params) {
     document.getElementById('tradeSize').value = params.trade_size || DEFAULT_CONFIG.tradeSize;
@@ -355,7 +352,7 @@ function populateFormFields(params) {
 }
 
 /**
- * Reset all form fields to default values
+ * Reset to defaults
  */
 function resetToDefaults() {
     document.getElementById('tradeSize').value = DEFAULT_CONFIG.tradeSize;
@@ -374,7 +371,7 @@ function resetToDefaults() {
 }
 
 /**
- * Save configuration to the backend
+ * Save configuration
  */
 async function saveConfiguration() {
     const saveText = document.getElementById('saveText');
@@ -389,11 +386,9 @@ async function saveConfiguration() {
             return;
         }
 
-        const response = await fetch(`${API_BASE_URL}/save-config`, {
+        console.log('💾 Saving configuration...', config);
+        const response = await authenticatedFetch(`${API_BASE_URL}/save-config`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
             body: JSON.stringify(config)
         });
 
@@ -402,34 +397,26 @@ async function saveConfiguration() {
             throw new Error(errorData.error || `HTTP ${response.status}`);
         }
 
-        const result = await response.json();
-        
-        // Update local loop interval if it changed
         if (config.loop_interval !== currentLoopInterval) {
-            console.log(`⏱️ Loop interval will change: ${currentLoopInterval}s → ${config.loop_interval}s`);
             currentLoopInterval = config.loop_interval;
-            
-            // Restart refresh intervals with new timing
             setTimeout(() => {
                 setupDynamicRefresh();
             }, 1000);
         }
         
-        showMessage('configMessage', 
-            `Configuration saved! Loop interval: ${config.loop_interval}s. Changes take effect on next trading cycle.`, 
-            'success'
-        );
+        showMessage('configMessage', 'Configuration saved successfully!', 'success');
+        console.log('✅ Configuration saved');
         
     } catch (error) {
-        console.error('Save configuration error:', error);
-        showMessage('configMessage', `Failed to save configuration: ${error.message}`, 'error');
+        console.error('❌ Save configuration error:', error);
+        showMessage('configMessage', `Failed to save: ${error.message}`, 'error');
     } finally {
         saveText.textContent = originalText;
     }
 }
 
 /**
- * Get configuration from form fields
+ * Get form configuration
  */
 function getFormConfiguration() {
     return {
@@ -448,18 +435,17 @@ function getFormConfiguration() {
 }
 
 /**
- * Validate configuration values
+ * Validate configuration
  */
 function validateConfiguration(config) {
     // Check for NaN values
     for (const [key, value] of Object.entries(config)) {
         if (isNaN(value)) {
-            showMessage('configMessage', `Invalid value for ${key}. Please enter a valid number.`, 'error');
+            showMessage('configMessage', `Invalid value for ${key}`, 'error');
             return false;
         }
     }
 
-    // Basic validation rules
     if (config.rsi_buy_threshold >= config.rsi_sell_threshold) {
         showMessage('configMessage', 'RSI buy threshold must be less than sell threshold', 'error');
         return false;
@@ -470,42 +456,11 @@ function validateConfiguration(config) {
         return false;
     }
     
-    if (config.trade_size <= 0 || config.position_size_usdt <= 0) {
-        showMessage('configMessage', 'Trade size and position size must be greater than 0', 'error');
-        return false;
-    }
-    
-    if (config.loop_interval < 30) {
-        showMessage('configMessage', 'Loop interval must be at least 30 seconds', 'error');
-        return false;
-    }
-    
-    if (config.indicator_window < 10) {
-        showMessage('configMessage', 'Indicator window must be at least 10', 'error');
-        return false;
-    }
-
-    // Range validations
-    if (config.trade_size < 0.001 || config.trade_size > 1.0) {
-        showMessage('configMessage', 'Trade size must be between 0.001 and 1.0', 'error');
-        return false;
-    }
-
-    if (config.rsi_buy_threshold < 10 || config.rsi_buy_threshold > 40) {
-        showMessage('configMessage', 'RSI buy threshold must be between 10 and 40', 'error');
-        return false;
-    }
-
-    if (config.rsi_sell_threshold < 60 || config.rsi_sell_threshold > 90) {
-        showMessage('configMessage', 'RSI sell threshold must be between 60 and 90', 'error');
-        return false;
-    }
-    
     return true;
 }
 
 /**
- * Show a message to the user
+ * Show message
  */
 function showMessage(elementId, text, type) {
     const messageDiv = document.getElementById(elementId);
@@ -514,7 +469,6 @@ function showMessage(elementId, text, type) {
         messageDiv.className = `message ${type}`;
         messageDiv.style.display = 'block';
         
-        // Auto-hide success messages after 8 seconds
         if (type === 'success') {
             setTimeout(() => hideMessage(elementId), 8000);
         }
@@ -522,7 +476,7 @@ function showMessage(elementId, text, type) {
 }
 
 /**
- * Hide a message
+ * Hide message
  */
 function hideMessage(elementId) {
     const messageDiv = document.getElementById(elementId);
@@ -531,19 +485,4 @@ function hideMessage(elementId) {
     }
 }
 
-/**
- * Get current refresh timing information for debugging
- */
-function getRefreshInfo() {
-    return {
-        currentLoopInterval: currentLoopInterval,
-        statusCheckInterval: !!statusCheckInterval,
-        tradesRefreshInterval: !!tradesRefreshInterval,
-        tradesRefreshRate: currentLoopInterval + 10
-    };
-}
-
-// Export refresh info for debugging
-window.getRefreshInfo = getRefreshInfo;
-
-console.log('🚀 Main application script loaded!');
+console.log('🚀 Main application script with authentication loaded!');

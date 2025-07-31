@@ -1,6 +1,5 @@
 """
-API routes module for the crypto trading bot.
-Defines all Flask endpoints for monitoring and control with enhanced parameter information and CORS support.
+API routes module for the crypto trading bot with authentication.
 """
 
 import os
@@ -16,72 +15,55 @@ from trading_engine import check_trading_signals_with_thresholds
 def create_app():
     """Create and configure Flask application with CORS support"""
     app = Flask(__name__)
-    
-    # Enable CORS for all domains on all routes
     CORS(app, origins=["*"], methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
-    
     return app
 
 def shutdown_server():
     """Gracefully shutdown the Flask server"""
     def shutdown():
-        # Set the ending flag
         trading_state.ending = True
         print("\n🛑 Shutdown initiated from web interface...")
-        print("🔄 Stopping trading loop...")
-        
-        # Give trading loop time to finish current iteration
         threading.Timer(2.0, lambda: os.kill(os.getpid(), signal.SIGTERM)).start()
     
-    # Run shutdown in a separate thread to return response first
     threading.Timer(0.5, shutdown).start()
 
 def register_routes(app):
     """Register all API routes with the Flask app"""
     
+    from auth import register_auth_routes, require_auth
+    
+    # Register auth routes
+    register_auth_routes(app)
+    
     @app.route('/')
     def hello_world():
         return jsonify({
-            "message": "Crypto Trading Bot API",
-            "version": "2.1 - Fixed Stop & Save Functionality",
-            "endpoints": {
-                "/status": "Get current trading status and market data",
-                "/signals": "Get recent trading signals",
-                "/trades": "Get recent trades",
-                "/parameters": "Get current parameter configuration",
-                "/save-config": "Save configuration to threshold.csv (POST)",
-                "/end": "Terminate trading algorithm and shutdown server"
-            }
+            "message": "Crypto Trading Bot API with Authentication",
+            "version": "2.1",
+            "login": "POST /login with username and password",
+            "debug": "GET /debug-csv to inspect user file"
         })
 
-    @app.route('/end', methods=['GET', 'POST'])
+    @app.route('/end', methods=['POST'])
+    @require_auth
     def signal_end():
-        """Properly shutdown the entire application"""
         try:
             shutdown_server()
             return jsonify({
                 "message": "Trading bot shutdown initiated", 
-                "status": "stopping",
-                "note": "Server will terminate in 2 seconds"
+                "status": "stopping"
             })
         except Exception as e:
-            return jsonify({
-                "error": f"Shutdown failed: {str(e)}"
-            }), 500
+            return jsonify({"error": f"Shutdown failed: {str(e)}"}), 500
 
-    @app.route('/save-config', methods=['POST', 'OPTIONS'])
+    @app.route('/save-config', methods=['POST'])
+    @require_auth
     def save_configuration():
-        """Save configuration to threshold.csv file"""
-        if request.method == 'OPTIONS':
-            return '', 200
-            
         try:
             data = request.get_json()
-            
             if not data:
                 return jsonify({"error": "No configuration data provided"}), 400
             
-            # Validate required fields
             required_fields = [
                 'trade_size', 'stop_loss', 'stop_profit', 'rsi_buy_threshold',
                 'rsi_sell_threshold', 'macd_buy_threshold', 'macd_sell_threshold',
@@ -92,53 +74,35 @@ def register_routes(app):
                 if field not in data:
                     return jsonify({"error": f"Missing required field: {field}"}), 400
             
-            # Ensure dataframe directory exists
             dataframe_dir = os.path.dirname(THRESHOLD_CSV_PATH)
             os.makedirs(dataframe_dir, exist_ok=True)
             
-            # Write to threshold.csv file
             with open(THRESHOLD_CSV_PATH, 'w', newline='', encoding='utf-8') as file:
                 writer = csv.writer(file)
-                
-                # Write header
                 writer.writerow([
                     'trade_size', 'stop_loss', 'stop_profit', 'rsi_buy_threshold',
                     'rsi_sell_threshold', 'macd_buy_threshold', 'macd_sell_threshold',
                     'position_size_usdt', 'active', 'loop_interval', 'indicator_window'
                 ])
                 
-                # Write data row
                 writer.writerow([
-                    data['trade_size'],
-                    data['stop_loss'],
-                    data['stop_profit'],
-                    data['rsi_buy_threshold'],
-                    data['rsi_sell_threshold'],
-                    data['macd_buy_threshold'],
-                    data['macd_sell_threshold'],
-                    data['position_size_usdt'],
-                    data['active'],
-                    data['loop_interval'],
-                    data['indicator_window']
+                    data['trade_size'], data['stop_loss'], data['stop_profit'],
+                    data['rsi_buy_threshold'], data['rsi_sell_threshold'],
+                    data['macd_buy_threshold'], data['macd_sell_threshold'],
+                    data['position_size_usdt'], data['active'],
+                    data['loop_interval'], data['indicator_window']
                 ])
             
-            print(f"✅ Configuration saved to {THRESHOLD_CSV_PATH}")
-            print(f"   Trade Size: {data['trade_size']} | Stop Loss: {data['stop_loss']*100:.1f}%")
-            print(f"   RSI: {data['rsi_buy_threshold']}/{data['rsi_sell_threshold']} | Active: {bool(data['active'])}")
-            
-            return jsonify({
-                "message": "Configuration saved successfully",
-                "file_path": THRESHOLD_CSV_PATH,
-                "note": "Changes will take effect on next trading loop iteration"
-            })
+            print(f"✅ Configuration saved")
+            return jsonify({"message": "Configuration saved successfully"})
             
         except Exception as e:
             print(f"❌ Error saving configuration: {e}")
             return jsonify({"error": f"Failed to save configuration: {str(e)}"}), 500
 
     @app.route('/status')
+    @require_auth
     def get_status():
-        """Get current trading status and latest market data with enhanced information"""
         try:
             historical_data = get_historical_data()
             thresholds = load_trading_thresholds()
@@ -148,7 +112,6 @@ def register_routes(app):
             if historical_data:
                 latest = historical_data[-1]
                 
-                # Calculate unrealized PnL if position exists
                 unrealized_pnl = None
                 if current_position and last_trade_price:
                     if current_position == 'LONG':
@@ -196,67 +159,11 @@ def register_routes(app):
                     }
                 })
         except Exception as e:
-            return jsonify({
-                "status": "error",
-                "message": f"Error reading data: {str(e)}"
-            }), 500
-
-    @app.route('/signals')
-    def get_recent_signals():
-        """Get recent trading signals with enhanced analysis"""
-        try:
-            historical_data = get_historical_data()
-            thresholds = load_trading_thresholds()
-            recent_signals = []
-            
-            # Get last 10 records for signal analysis
-            for data in historical_data[-10:]:
-                signal, should_execute = check_trading_signals_with_thresholds(data, thresholds)
-                
-                # Enhanced signal information
-                signal_info = {
-                    "datetime": data['datetime'],
-                    "price": data['price'],
-                    "signal": signal,
-                    "should_execute": should_execute,
-                    "indicators": {
-                        "rsi": data['rsi'],
-                        "macd": data['macd'],
-                        "signal_line": data['signal_line']
-                    }
-                }
-                
-                # Add RSI and MACD analysis
-                if data['rsi'] is not None:
-                    if data['rsi'] <= thresholds['rsi_buy_threshold']:
-                        signal_info['rsi_condition'] = "oversold"
-                    elif data['rsi'] >= thresholds['rsi_sell_threshold']:
-                        signal_info['rsi_condition'] = "overbought"
-                    else:
-                        signal_info['rsi_condition'] = "neutral"
-                
-                if data['macd'] is not None and data['signal_line'] is not None:
-                    signal_info['macd_position'] = "above_signal" if data['macd'] > data['signal_line'] else "below_signal"
-                    signal_info['macd_divergence'] = abs(data['macd'] - data['signal_line'])
-                
-                recent_signals.append(signal_info)
-            
-            return jsonify({
-                "recent_signals": recent_signals,
-                "analysis_period": len(recent_signals),
-                "thresholds_used": {
-                    "rsi_buy": thresholds['rsi_buy_threshold'],
-                    "rsi_sell": thresholds['rsi_sell_threshold'],
-                    "macd_buy": thresholds['macd_buy_threshold'],
-                    "macd_sell": thresholds['macd_sell_threshold']
-                }
-            })
-        except Exception as e:
-            return jsonify({"error": f"Error getting signals: {str(e)}"}), 500
+            return jsonify({"status": "error", "message": f"Error reading data: {str(e)}"}), 500
 
     @app.route('/trades')
+    @require_auth
     def get_recent_trades():
-        """Get recent trades from order.csv with enhanced information"""
         try:
             if not os.path.exists(ORDER_CSV_PATH):
                 return jsonify({"trades": [], "summary": {"total_trades": 0}})
@@ -266,9 +173,8 @@ def register_routes(app):
                 reader = csv.DictReader(file)
                 all_trades = list(reader)
             
-            recent_trades = all_trades[-20:]  # Last 20 trades
+            recent_trades = all_trades[-20:]
             
-            # Enhanced trade information
             for trade in recent_trades:
                 enhanced_trade = {
                     "datetime": trade['datetime'],
@@ -280,7 +186,6 @@ def register_routes(app):
                 }
                 trades.append(enhanced_trade)
             
-            # Calculate summary statistics
             total_trades = len(all_trades)
             buy_trades = sum(1 for t in all_trades if t['side'] == 'BUY')
             sell_trades = sum(1 for t in all_trades if t['side'] == 'SELL')
@@ -292,47 +197,29 @@ def register_routes(app):
                 "showing_recent": len(recent_trades)
             }
             
-            return jsonify({
-                "trades": trades,
-                "summary": summary
-            })
+            return jsonify({"trades": trades, "summary": summary})
         except Exception as e:
             return jsonify({"error": f"Error reading trades: {str(e)}"}), 500
 
     @app.route('/parameters')
+    @require_auth
     def get_parameters():
-        """Get current parameter configuration with validation info"""
         try:
             thresholds = load_trading_thresholds()
             periods = get_indicator_periods(thresholds['indicator_window'])
             
             return jsonify({
                 "current_parameters": thresholds,
-                "derived_periods": periods,
-                "parameter_info": {
-                    "indicator_window": "Controls all indicator periods (main tuning parameter)",
-                    "rsi_window": f"Calculated as {periods['rsi_window']} from indicator_window",
-                    "macd_fast": f"Calculated as {periods['macd_fast']} from indicator_window", 
-                    "macd_slow": f"Same as indicator_window ({periods['macd_slow']})",
-                    "signal_window": f"Calculated as {periods['signal_window']} from indicator_window"
-                },
-                "recommendations": {
-                    "indicator_window": "20-30 for balanced sensitivity",
-                    "rsi_thresholds": "Buy: 25-35, Sell: 65-80",
-                    "stop_loss": "1-5% depending on volatility",
-                    "stop_profit": "1.5-5% depending on strategy"
-                }
+                "derived_periods": periods
             })
         except Exception as e:
             return jsonify({"error": f"Error getting parameters: {str(e)}"}), 500
     
     @app.route('/market-data')
+    @require_auth
     def get_market_data():
-        """Get recent market data for visualization"""
         try:
             historical_data = get_historical_data()
-            
-            # Return last 100 records for visualization
             recent_data = historical_data[-100:] if len(historical_data) > 100 else historical_data
             
             return jsonify({

@@ -1,5 +1,5 @@
 /**
- * Handles three data states: no data, insufficient data, and full data with indicators
+ * Chart manager with authentication support
  */
 class TradingChartManager {
     constructor(apiBaseUrl = 'http://localhost:5000') {
@@ -7,9 +7,37 @@ class TradingChartManager {
         this.tradeData = [];
         this.API_BASE_URL = apiBaseUrl;
         this.chartInitialized = false;
-        this.minDataForIndicators = 26; // Will be updated from backend
+        this.minDataForIndicators = 26;
         
-        console.log('📊 TradingChartManager initialized');
+        console.log('📊 TradingChartManager initialized with auth');
+    }
+
+    /**
+     * Get authentication headers
+     */
+    getAuthHeaders() {
+        const token = sessionStorage.getItem('authToken');
+        return {
+            'Authorization': `Bearer ${token}`
+        };
+    }
+
+    /**
+     * Make authenticated API request
+     */
+    async authenticatedFetch(url) {
+        const response = await fetch(url, {
+            headers: this.getAuthHeaders()
+        });
+        
+        if (response.status === 401) {
+            console.log('🔐 Chart auth failed, redirecting...');
+            sessionStorage.removeItem('authToken');
+            window.location.href = 'login.html';
+            throw new Error('Authentication failed');
+        }
+        
+        return response;
     }
 
     /**
@@ -31,7 +59,6 @@ class TradingChartManager {
     startChart() {
         console.log('🎯 Starting chart system...');
         
-        // Wait for Plotly to be available
         this.waitForPlotly().then(() => {
             this.createInitialChart();
             this.setupDataRefresh();
@@ -41,7 +68,7 @@ class TradingChartManager {
     }
 
     /**
-     * Wait for Plotly to load with timeout
+     * Wait for Plotly to load
      */
     waitForPlotly(timeout = 10000) {
         return new Promise((resolve, reject) => {
@@ -52,7 +79,7 @@ class TradingChartManager {
                     console.log('✅ Plotly loaded successfully');
                     resolve();
                 } else if (Date.now() - startTime > timeout) {
-                    console.error('❌ Plotly failed to load within timeout');
+                    console.error('❌ Plotly failed to load');
                     reject();
                 } else {
                     setTimeout(checkPlotly, 100);
@@ -64,7 +91,7 @@ class TradingChartManager {
     }
 
     /**
-     * Create initial chart and load data
+     * Create initial chart
      */
     async createInitialChart() {
         const container = document.getElementById('priceChart');
@@ -73,37 +100,30 @@ class TradingChartManager {
             return;
         }
 
-        // Load data and determine chart state
         await this.loadAllData();
         this.updateChart();
         this.chartInitialized = true;
     }
 
     /**
-     * Load both market data and trades data
+     * Load all data
      */
     async loadAllData() {
         try {
-            // Get minimum required data points from backend
             await this.loadMinRequiredData();
-            
-            // Load market data
             await this.loadMarketData();
-            
-            // Load trades data
             await this.loadTradesData();
-            
         } catch (error) {
-            console.log('📡 Error loading data:', error);
+            console.log('📡 Error loading chart data:', error);
         }
     }
 
     /**
-     * Get minimum required data points from backend configuration
+     * Get minimum required data points
      */
     async loadMinRequiredData() {
         try {
-            const response = await fetch(`${this.API_BASE_URL}/parameters`);
+            const response = await this.authenticatedFetch(`${this.API_BASE_URL}/parameters`);
             if (response.ok) {
                 const data = await response.json();
                 if (data.derived_periods) {
@@ -112,20 +132,20 @@ class TradingChartManager {
                         data.derived_periods.macd_slow,
                         data.derived_periods.signal_window
                     );
-                    console.log(`📊 Minimum data points required: ${this.minDataForIndicators}`);
+                    console.log(`📊 Min data points: ${this.minDataForIndicators}`);
                 }
             }
         } catch (error) {
-            console.log('Using default minimum data requirement:', this.minDataForIndicators);
+            console.log('📊 Using default min data:', this.minDataForIndicators);
         }
     }
 
     /**
-     * Load market data from backend
+     * Load market data
      */
     async loadMarketData() {
         try {
-            const response = await fetch(`${this.API_BASE_URL}/market-data`);
+            const response = await this.authenticatedFetch(`${this.API_BASE_URL}/market-data`);
             if (response.ok) {
                 const result = await response.json();
                 this.marketData = result.data || [];
@@ -134,17 +154,17 @@ class TradingChartManager {
                 this.marketData = [];
             }
         } catch (error) {
-            console.log('📊 Could not load market data from API');
+            console.log('📊 Could not load market data');
             this.marketData = [];
         }
     }
 
     /**
-     * Load trades data from backend
+     * Load trades data
      */
     async loadTradesData() {
         try {
-            const response = await fetch(`${this.API_BASE_URL}/trades`);
+            const response = await this.authenticatedFetch(`${this.API_BASE_URL}/trades`);
             if (response.ok) {
                 const result = await response.json();
                 this.tradeData = result.trades || [];
@@ -153,7 +173,7 @@ class TradingChartManager {
                 this.tradeData = [];
             }
         } catch (error) {
-            console.log('📈 Could not load trades data from API');
+            console.log('📈 Could not load trades data');
             this.tradeData = [];
         }
     }
@@ -165,7 +185,6 @@ class TradingChartManager {
         const container = document.getElementById('priceChart');
         if (!container) return;
 
-        // Determine chart state based on data availability
         if (this.marketData.length === 0) {
             this.showNoDataState();
         } else if (this.marketData.length < this.minDataForIndicators) {
@@ -176,10 +195,10 @@ class TradingChartManager {
     }
 
     /**
-     * State 1: No price data available
+     * No data state
      */
     showNoDataState() {
-        console.log('📊 Showing no data state');
+        console.log('📊 No data available');
         
         const container = document.getElementById('priceChart');
         container.innerHTML = `
@@ -200,28 +219,26 @@ class TradingChartManager {
                 <div style="font-size: 20px; font-weight: 600; margin-bottom: 15px; color: #ef4444;">
                     No Price Data Available
                 </div>
-                <div style="font-size: 14px; color: #94a3b8; margin-bottom: 25px; line-height: 1.5;">
-                    market_data.csv contains no price data<br>
+                <div style="font-size: 14px; color: #94a3b8; line-height: 1.5;">
                     Start the Python backend to begin collecting data
                 </div>
             </div>
         `;
         
-        this.showMessage('No price data found in market_data.csv', 'error');
+        this.showMessage('No price data found', 'error');
     }
 
     /**
-     * State 2: Some price data but not enough for indicators
+     * Insufficient data state
      */
     showInsufficientDataState() {
-        console.log(`📊 Showing insufficient data state: ${this.marketData.length}/${this.minDataForIndicators}`);
+        console.log(`📊 Insufficient data: ${this.marketData.length}/${this.minDataForIndicators}`);
         
         if (typeof Plotly === 'undefined') {
             this.createFallbackChart();
             return;
         }
 
-        // Create price-only chart
         const timestamps = this.marketData.map(d => new Date(d.datetime));
         const prices = this.marketData.map(d => d.price);
 
@@ -255,40 +272,29 @@ class TradingChartManager {
             plot_bgcolor: 'rgba(15, 23, 42, 0.3)',
             font: { color: '#e2e8f0' },
             margin: { t: 60, r: 30, b: 60, l: 70 },
-            height: 400,
-            annotations: [{
-                text: `Collecting data for indicators (${this.marketData.length}/${this.minDataForIndicators})`,
-                showarrow: false,
-                x: 0.5,
-                y: 0.95,
-                xref: 'paper',
-                yref: 'paper',
-                font: { color: '#f59e0b', size: 12 }
-            }]
+            height: 400
         };
 
-        const config = {
+        Plotly.newPlot('priceChart', [priceTrace], layout, {
             responsive: true,
             displayModeBar: false,
             staticPlot: true
-        };
-
-        Plotly.newPlot('priceChart', [priceTrace], layout, config)
-            .then(() => {
-                console.log('✅ Price-only chart created');
-                this.showMessage(`Price data available but need ${this.minDataForIndicators - this.marketData.length} more data points for trading indicators`, 'warning');
-            })
-            .catch(error => {
-                console.error('❌ Error creating price chart:', error);
-                this.createFallbackChart();
-            });
+        })
+        .then(() => {
+            console.log('✅ Price chart created');
+            this.showMessage(`Need ${this.minDataForIndicators - this.marketData.length} more data points for indicators`, 'warning');
+        })
+        .catch(error => {
+            console.error('❌ Chart error:', error);
+            this.createFallbackChart();
+        });
     }
 
     /**
-     * State 3: Full data with indicators and trades
+     * Full trading chart
      */
     showFullTradingChart() {
-        console.log(`📊 Showing full trading chart with ${this.marketData.length} data points and ${this.tradeData.length} trades`);
+        console.log(`📊 Full chart: ${this.marketData.length} data, ${this.tradeData.length} trades`);
         
         if (typeof Plotly === 'undefined') {
             this.createFallbackChart();
@@ -296,8 +302,6 @@ class TradingChartManager {
         }
 
         const traces = [];
-
-        // Price trace
         const timestamps = this.marketData.map(d => new Date(d.datetime));
         const prices = this.marketData.map(d => d.price);
 
@@ -310,7 +314,6 @@ class TradingChartManager {
             line: { color: '#ff6b6b', width: 2 }
         });
 
-        // Add trade markers if available
         if (this.tradeData.length > 0) {
             const buyTrades = this.tradeData.filter(t => t.side === 'BUY');
             const sellTrades = this.tradeData.filter(t => t.side === 'SELL');
@@ -363,29 +366,25 @@ class TradingChartManager {
             showlegend: true
         };
 
-        const config = {
+        Plotly.newPlot('priceChart', traces, layout, {
             responsive: true,
             displayModeBar: false,
             staticPlot: true
-        };
-
-        Plotly.newPlot('priceChart', traces, layout, config)
-            .then(() => {
-                console.log('✅ Full trading chart created');
-                this.showMessage(`Trading chart active with ${this.marketData.length} data points and ${this.tradeData.length} trades`, 'success');
-            })
-            .catch(error => {
-                console.error('❌ Error creating full chart:', error);
-                this.createFallbackChart();
-            });
+        })
+        .then(() => {
+            console.log('✅ Full trading chart created');
+            this.showMessage(`Chart active: ${this.marketData.length} data points, ${this.tradeData.length} trades`, 'success');
+        })
+        .catch(error => {
+            console.error('❌ Chart error:', error);
+            this.createFallbackChart();
+        });
     }
 
     /**
-     * Create fallback chart when Plotly fails
+     * Fallback chart
      */
     createFallbackChart() {
-        console.log('🔄 Creating fallback chart...');
-        
         const container = document.getElementById('priceChart');
         if (!container) return;
 
@@ -407,32 +406,28 @@ class TradingChartManager {
                 <div style="font-size: 20px; font-weight: 600; margin-bottom: 15px;">
                     Chart Library Loading...
                 </div>
-                <div style="font-size: 14px; color: #94a3b8; margin-bottom: 25px; line-height: 1.5;">
-                    Plotly.js is loading. Chart will appear when ready.<br>
-                    Check your internet connection if this persists.
+                <div style="font-size: 14px; color: #94a3b8;">
+                    Please wait for Plotly to load
                 </div>
             </div>
         `;
-        
-        this.showMessage('Chart library loading, please wait...', 'warning');
     }
 
     /**
-     * Setup automatic data refresh
+     * Setup data refresh
      */
     setupDataRefresh() {
-        // Refresh data every 30 seconds
         setInterval(() => {
             if (this.chartInitialized) {
                 this.refreshData();
             }
         }, 30000);
         
-        console.log('🔄 Data refresh setup complete');
+        console.log('🔄 Chart refresh: every 30s');
     }
 
     /**
-     * Refresh data and update chart
+     * Refresh data
      */
     async refreshData() {
         console.log('🔄 Refreshing chart data...');
@@ -442,16 +437,15 @@ class TradingChartManager {
         
         await this.loadAllData();
         
-        // Only update chart if data changed
         if (this.marketData.length !== previousDataLength || 
             this.tradeData.length !== previousTradesLength) {
-            console.log(`📊 Data updated: Market ${previousDataLength}→${this.marketData.length}, Trades ${previousTradesLength}→${this.tradeData.length}`);
+            console.log(`📊 Chart data updated`);
             this.updateChart();
         }
     }
 
     /**
-     * Show message in the visualization section
+     * Show message
      */
     showMessage(text, type) {
         const messageDiv = document.getElementById('vizMessage');
@@ -469,45 +463,25 @@ class TradingChartManager {
     }
 
     /**
-     * Manual refresh method for external calls
+     * Manual refresh
      */
     async refresh() {
-        console.log('🔄 Manual refresh triggered...');
+        console.log('🔄 Manual chart refresh...');
         this.showMessage('Refreshing chart...', 'warning');
-        
         await this.refreshData();
-    }
-
-    /**
-     * Get debug information
-     */
-    getDebugInfo() {
-        return {
-            chartInitialized: this.chartInitialized,
-            marketDataLength: this.marketData.length,
-            tradeDataLength: this.tradeData.length,
-            minDataForIndicators: this.minDataForIndicators,
-            chartElementExists: !!document.getElementById('priceChart'),
-            plotlyLoaded: typeof Plotly !== 'undefined',
-            apiUrl: this.API_BASE_URL
-        };
     }
 }
 
-// Global instance and initialization function
+// Global functions
 let chartManagerInstance = null;
 
 window.initializeChartManager = function(apiBaseUrl = 'http://localhost:5000') {
-    if (chartManagerInstance) {
-        console.log('🔄 Reinitializing chart manager...');
-    }
-    
+    console.log('🎯 Initializing chart manager...');
     chartManagerInstance = new TradingChartManager(apiBaseUrl);
     chartManagerInstance.initialize();
     return chartManagerInstance;
 };
 
-// Global refresh function for manual refresh
 window.refreshChart = function() {
     if (chartManagerInstance) {
         chartManagerInstance.refresh();
@@ -516,17 +490,4 @@ window.refreshChart = function() {
     }
 };
 
-// Global debug function
-window.debugChart = function() {
-    if (chartManagerInstance) {
-        const info = chartManagerInstance.getDebugInfo();
-        console.log('=== CHART DEBUG INFO ===');
-        console.table(info);
-        return info;
-    } else {
-        console.warn('Chart manager not initialized');
-        return null;
-    }
-};
-
-console.log('🚀 Chart manager module loaded!');
+console.log('🚀 Chart manager with authentication loaded!');

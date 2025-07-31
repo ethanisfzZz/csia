@@ -9,8 +9,26 @@
 </head>
 <body>
     <div class="container">
-        <!-- Control Section -->
+        <!-- Header with logout -->
         <div class="card control-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div style="color: #94a3b8; font-size: 0.9rem;">
+                    Welcome, <span id="currentUser" style="color: #ff6b6b; font-weight: 600;">User</span>
+                </div>
+                <button onclick="logout()" style="
+                    background: rgba(239, 68, 68, 0.2);
+                    border: 1px solid rgba(239, 68, 68, 0.3);
+                    color: #ef4444;
+                    padding: 8px 16px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-size: 0.8rem;
+                    transition: all 0.3s ease;
+                ">
+                    Logout
+                </button>
+            </div>
+
             <h1 class="title">Ethan CompSci IA: Crypto Trading Bot!</h1>
             <p class="subtitle">
                 Fully automated & customizable crypto trading bot based on MACD trading strategy 
@@ -170,49 +188,56 @@
         </div>
     </div>
 
-    <!-- Load Plotly first -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.26.0/plotly.min.js"></script>
-    
-    <!-- Load application scripts -->
     <script src="script.js"></script>
     <script src="chart-manager.js"></script>
     
-    <!-- Initialize everything when page loads -->
     <script>
+        // Check authentication on page load
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 Page loaded, initializing application...');
+            const authToken = sessionStorage.getItem('authToken');
+            const username = sessionStorage.getItem('username');
             
-            // Check if Plotly loaded successfully
-            if (typeof Plotly === 'undefined') {
-                console.error('❌ Plotly failed to load');
-                const chartContainer = document.getElementById('priceChart');
-                if (chartContainer) {
-                    chartContainer.innerHTML = `
-                        <div style="
-                            display: flex;
-                            flex-direction: column;
-                            align-items: center;
-                            justify-content: center;
-                            height: 400px;
-                            color: #ef4444;
-                            text-align: center;
-                            padding: 20px;
-                        ">
-                            <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
-                            <div style="font-size: 18px; font-weight: 600; margin-bottom: 10px;">
-                                Chart Library Failed to Load
-                            </div>
-                            <div style="font-size: 14px; color: #94a3b8;">
-                                Check your internet connection and refresh the page
-                            </div>
-                        </div>
-                    `;
-                }
-            } else {
-                console.log('✅ Plotly loaded, initializing chart manager...');
+            console.log('🔐 Checking authentication...');
+            console.log('🎫 Token exists:', !!authToken);
+            
+            if (!authToken) {
+                console.log('❌ No auth token, redirecting to login');
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            console.log('✅ Auth token found, loading dashboard');
+            document.getElementById('currentUser').textContent = username || 'User';
+            
+            // Initialize application
+            console.log('🚀 Initializing application...');
+            
+            if (typeof Plotly !== 'undefined') {
+                console.log('📊 Plotly loaded, initializing charts...');
                 initializeChartManager('http://localhost:5000');
+            } else {
+                console.error('❌ Plotly not loaded');
             }
         });
+
+        // Logout function
+        function logout() {
+            console.log('👋 Logging out...');
+            
+            fetch('http://localhost:5000/logout', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${sessionStorage.getItem('authToken')}`
+                }
+            }).catch(error => {
+                console.log('Logout API call failed:', error);
+            });
+            
+            sessionStorage.removeItem('authToken');
+            sessionStorage.removeItem('username');
+            window.location.href = 'login.html';
+        }
     </script>
 </body>
 </html>
