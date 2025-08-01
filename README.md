@@ -95,7 +95,7 @@ This trading bot automates Binance cryptocurrency trading for Bitcoin (BTC) with
 
 ### How to Configure Threshold Values
 
-**Configuration Panel:**
+**Configuration Panel:** - Press "Save" to save configurations, Press "Reset" to reset values to default values
 - **Trade Size**: Amount of BTC per trade (0.001 - 1.0)
 - **Stop Loss %**: Maximum loss before auto-sell (0.5% - 10%)
 - **Take Profit %**: Target profit for auto-sell (0.5% - 15%)
@@ -104,19 +104,3 @@ This trading bot automates Binance cryptocurrency trading for Bitcoin (BTC) with
 - **MACD Buy/Sell**: Signal levels for MACD indicator (-0.01 to 0.01)
 - **Loop Interval**: Time between decisions in seconds (30-300)
 - **Indicator Window**: Period for calculations (10-50, default: 26)
-
-
-
-
-**To Save Changes:**
-1. Adjust values in the configuration panel
-2. Click "Save Configuration" button
-3. Changes take effect on the next trading cycle
-4. Configuration is saved to `Backend/dataframe/threshold.csv`
-
-
-
-
-**Recommended Settings:**
-- **Conservative**: Small trade size (0.01), tight stop loss (1%), longer intervals (120s)
-- **Aggressive**: Larger trade size (0.05), wider stops (3%), shorter intervals (60s)
