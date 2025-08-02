@@ -1,6 +1,11 @@
 """
 Trading engine module for the crypto trading bot.
 Handles trading signals, position management, and trade execution with improved MACD logic.
+
+Citations:
+- MACD trading strategy: https://www.investopedia.com/terms/m/macd.asp
+- RSI technical analysis: https://www.investopedia.com/terms/r/rsi.asp
+- Stop loss/take profit concepts: https://www.investopedia.com/terms/s/stop-lossorder.asp
 """
 
 from file_manager import get_current_position_from_orders, append_order_to_csv, get_historical_data
@@ -13,21 +18,21 @@ def check_trading_signals_with_thresholds(market_data, thresholds):
     Enhanced trading signal detection with intuitive MACD logic and RSI confirmation.
     
     Trading Logic:
-    1. Check stop loss/take profit first (if position exists)
-    2. For new positions: Require both RSI and MACD confirmation
+    1. Check stop loss/take proof first (if position exists) - risk management priority
+    2. For new positions: Require both RSI and MACD confirmation to reduce false signals
     3. MACD crossovers are primary signals, RSI provides confirmation
     4. Thresholds act as additional filters
     """
-    # Check if we have valid data and trading is active
+    # basic validation - ensure we have data and trading is enabled
     if (market_data is None or not thresholds['active']):
         return "NO_SIGNAL", False
     
     current_price = market_data['price']
     
-    # Get current position from order history
+    # get our current trading position from order history
     current_position, last_trade_price = get_current_position_from_orders()
     
-    # STEP 1: Check stop loss and take profit if we have a position
+    # STEP 1: prioritize risk management - check exits before entries
     if current_position and last_trade_price:
         stop_loss_signal, should_execute_stop = check_stop_loss_take_profit(
             current_position, current_price, last_trade_price, thresholds
@@ -35,7 +40,7 @@ def check_trading_signals_with_thresholds(market_data, thresholds):
         if should_execute_stop:
             return stop_loss_signal, True
     
-    # STEP 2: Check for new position signals only if we don't have a position
+    # STEP 2: only look for new positions if we're not already in one
     if current_position is None:
         signal, should_execute = check_new_position_signals(market_data, thresholds)
         return signal, should_execute
@@ -45,28 +50,29 @@ def check_trading_signals_with_thresholds(market_data, thresholds):
 def check_stop_loss_take_profit(current_position, current_price, last_trade_price, thresholds):
     """
     Check stop loss and take profit conditions for existing positions.
+    Uses percentage-based thresholds for consistent risk management.
     """
     if current_position == 'LONG':
-        # Stop loss: price fell too much
+        # stop loss: price fell below our threshold
         if current_price <= last_trade_price * (1 - thresholds['stop_loss']):
             loss_pct = ((last_trade_price - current_price) / last_trade_price) * 100
             print(f"💥 Stop Loss Triggered! LONG position down {loss_pct:.2f}%")
             return "SELL_STOP_LOSS", True
         
-        # Take profit: price rose enough
+        # take profit: price rose above our target
         if current_price >= last_trade_price * (1 + thresholds['stop_profit']):
             profit_pct = ((current_price - last_trade_price) / last_trade_price) * 100
             print(f"💰 Take Profit Triggered! LONG position up {profit_pct:.2f}%")
             return "SELL_TAKE_PROFIT", True
     
     elif current_position == 'SHORT':
-        # Stop loss: price rose too much
+        # stop loss: price rose above our threshold (bad for short)
         if current_price >= last_trade_price * (1 + thresholds['stop_loss']):
             loss_pct = ((current_price - last_trade_price) / last_trade_price) * 100
             print(f"💥 Stop Loss Triggered! SHORT position down {loss_pct:.2f}%")
             return "BUY_STOP_LOSS", True
         
-        # Take profit: price fell enough
+        # take profit: price fell below our target (good for short)
         if current_price <= last_trade_price * (1 - thresholds['stop_profit']):
             profit_pct = ((last_trade_price - current_price) / last_trade_price) * 100
             print(f"💰 Take Profit Triggered! SHORT position up {profit_pct:.2f}%")
@@ -77,27 +83,28 @@ def check_stop_loss_take_profit(current_position, current_price, last_trade_pric
 def check_new_position_signals(market_data, thresholds):
     """
     Check for new position entry signals using enhanced MACD and RSI logic.
+    Combines multiple indicators to reduce false signals and improve accuracy.
     """
     rsi = market_data['rsi']
     macd = market_data['macd']
     signal_line = market_data['signal_line']
     
-    # Need all indicators to make trading decisions
+    # ensure we have all required indicators before making decisions
     if None in [rsi, macd, signal_line]:
         return "NO_SIGNAL", False
     
     historical_data = get_historical_data()
     
-    # Get MACD crossover information
+    # get MACD crossover info - key for trend detection
     bullish_cross, bearish_cross, crossover_strength = check_macd_crossover(
         historical_data, macd, signal_line
     )
     
-    # Get trend strength and RSI condition
+    # analyze current market conditions
     macd_trend = get_macd_trend_strength(macd, signal_line)
     rsi_condition = analyze_rsi_condition(rsi, thresholds['rsi_buy_threshold'], thresholds['rsi_sell_threshold'])
     
-    # Enhanced signal detection logic
+    # check buy conditions with detailed reasoning
     buy_signal, buy_reason = check_buy_conditions(
         rsi, macd, signal_line, bullish_cross, crossover_strength, 
         macd_trend, rsi_condition, thresholds
@@ -107,6 +114,7 @@ def check_new_position_signals(market_data, thresholds):
         print(f"📈 BUY Signal: {buy_reason}")
         return "BUY_SIGNAL", True
     
+    # check sell conditions with detailed reasoning
     sell_signal, sell_reason = check_sell_conditions(
         rsi, macd, signal_line, bearish_cross, crossover_strength,
         macd_trend, rsi_condition, thresholds
@@ -116,7 +124,7 @@ def check_new_position_signals(market_data, thresholds):
         print(f"📉 SELL Signal: {sell_reason}")
         return "SELL_SIGNAL", True
     
-    # Log current conditions for debugging
+    # log current conditions for debugging - helps with strategy optimization
     print(f"Market Analysis - RSI: {rsi:.1f} ({rsi_condition}), MACD: {macd_trend}, "
           f"Crossover: {crossover_strength or 'none'}")
     
@@ -126,21 +134,22 @@ def check_buy_conditions(rsi, macd, signal_line, bullish_cross, crossover_streng
                         macd_trend, rsi_condition, thresholds):
     """
     Check all conditions for a BUY signal with detailed reasoning.
+    Uses multi-factor confirmation to improve signal quality.
     """
-    # Primary condition: MACD bullish crossover
+    # primary condition: MACD bullish crossover - trend change indicator
     if bullish_cross:
-        # Strong crossover with RSI confirmation
+        # strong crossover + oversold RSI = high confidence signal
         if (crossover_strength == "strong" and 
             rsi_condition in ["oversold", "extremely_oversold"] and
             macd > thresholds['macd_buy_threshold']):
             return True, f"Strong bullish MACD crossover + RSI oversold ({rsi:.1f})"
         
-        # Weak crossover but very oversold RSI
+        # weak crossover but very oversold = still worth taking
         if (rsi_condition == "extremely_oversold" and 
             macd > thresholds['macd_buy_threshold']):
             return True, f"MACD bullish crossover + Extremely oversold RSI ({rsi:.1f})"
     
-    # Secondary condition: Strong bullish trend with RSI oversold
+    # secondary condition: strong trend + oversold condition
     if (macd_trend == "strong_bullish" and 
         rsi_condition in ["oversold", "extremely_oversold"] and
         macd > thresholds['macd_buy_threshold']):
@@ -152,21 +161,22 @@ def check_sell_conditions(rsi, macd, signal_line, bearish_cross, crossover_stren
                          macd_trend, rsi_condition, thresholds):
     """
     Check all conditions for a SELL signal with detailed reasoning.
+    Mirror logic of buy conditions but for bearish scenarios.
     """
-    # Primary condition: MACD bearish crossover
+    # primary condition: MACD bearish crossover - trend reversal indicator
     if bearish_cross:
-        # Strong crossover with RSI confirmation
+        # strong crossover + overbought RSI = high confidence sell signal
         if (crossover_strength == "strong" and 
             rsi_condition in ["overbought", "extremely_overbought"] and
             macd < thresholds['macd_sell_threshold']):
             return True, f"Strong bearish MACD crossover + RSI overbought ({rsi:.1f})"
         
-        # Weak crossover but very overbought RSI
+        # weak crossover but very overbought = still worth selling
         if (rsi_condition == "extremely_overbought" and 
             macd < thresholds['macd_sell_threshold']):
             return True, f"MACD bearish crossover + Extremely overbought RSI ({rsi:.1f})"
     
-    # Secondary condition: Strong bearish trend with RSI overbought
+    # secondary condition: strong bearish trend + overbought
     if (macd_trend == "strong_bearish" and 
         rsi_condition in ["overbought", "extremely_overbought"] and
         macd < thresholds['macd_sell_threshold']):
@@ -176,15 +186,17 @@ def check_sell_conditions(rsi, macd, signal_line, bearish_cross, crossover_stren
 
 def execute_trade(signal, market_data, thresholds):
     """
-    Execute a trade based on the signal and log it to order.csv
+    Execute a trade based on the signal and log it to order.csv.
+    Handles the actual trade execution and record keeping.
     """
+    # only execute actual trading signals
     if not any(signal.endswith(suffix) for suffix in ['_SIGNAL', '_LOSS', '_PROFIT']):
         return
     
     current_price = market_data['price']
     trade_size = thresholds['trade_size']
     
-    # Determine side based on signal
+    # determine if we're buying or selling based on signal type
     if signal.startswith('BUY'):
         side = 'BUY'
     else:
@@ -192,7 +204,7 @@ def execute_trade(signal, market_data, thresholds):
     
     quantity = trade_size
     
-    # Create order data
+    # create structured order data for CSV logging
     order_data = {
         'datetime': market_data['datetime'],
         'side': side,
@@ -201,13 +213,13 @@ def execute_trade(signal, market_data, thresholds):
         'trade_size': trade_size
     }
     
-    # Log the trade to CSV
+    # log the trade to CSV for record keeping
     append_order_to_csv(order_data)
     
-    # Enhanced trade execution logging
+    # enhanced logging with trade type classification
     trade_type = signal.replace('_SIGNAL', '').replace('_LOSS', ' STOP').replace('_PROFIT', ' PROFIT')
     print(f"🚨 TRADE EXECUTED: {trade_type} - {side} {quantity} at ${current_price:,.2f}")
     
-    # Calculate position size in USD
+    # calculate and display position value for portfolio tracking
     position_value = quantity * current_price
     print(f"💵 Position Value: ${position_value:,.2f}")
