@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ethan CompSci IA: Crypto Trading Bot!</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header with logout -->
+        <div class="card control-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div style="color: #94a3b8; font-size: 0.9rem;">
+                    Welcome, <span id="currentUser" style="color: #ff6b6b; font-weight: 600;">User</span>
+                </div>
+                <button onclick="logout()" style="
+                    background: rgba(239, 68, 68, 0.2);
+                    border: 1px solid rgba(239, 68, 68, 0.3);
+                    color: #ef4444;
+                    padding: 8px 16px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-size: 0.8rem;
+                    transition: all 0.3s ease;
+                ">
+                    Logout
+                </button>
+            </div>
+
+            <h1 class="title">Ethan CompSci IA: Crypto Trading Bot!</h1>
+            <p class="subtitle">
+                Fully automated & customizable crypto trading bot based on MACD trading strategy 
+            </p>
+            
+            <div class="status-display">
+                <div class="status-indicator" id="statusIndicator"></div>
+                <span class="status-text">Status: <span id="statusText">Checking...</span></span>
+            </div>
+            
+            <div class="control-buttons">
+                <button class="btn btn-start" id="startBtn" onclick="startBot()">
+                    <span id="startText">Start Bot</span>
+                </button>
+                <button class="btn btn-stop" id="stopBtn" onclick="stopBot()">
+                    <span id="stopText">Stop Bot</span>
+                </button>
+            </div>
+            
+            <div class="message" id="controlMessage"></div>
+        </div>
+
+        <!-- Trading Visualization Section -->
+        <div class="card visualization-section">
+            <h2 class="section-title">Trading Performance Visualization</h2>
+            
+            <div class="chart-wrapper">
+                <h3 class="chart-title">Bitcoin Price & Trading Activity</h3>
+                <div id="priceChart" class="chart-container">
+                    <div style="
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        height: 400px;
+                        color: #94a3b8;
+                        font-size: 14px;
+                    ">
+                        Initializing chart system...
+                    </div>
+                </div>
+            </div>
+            
+            <div class="message" id="vizMessage"></div>
+        </div>
+
+        <!-- Trading History Section -->
+        <div class="card trades-section">
+            <h2 class="section-title">Trading History</h2>
+            
+            <div class="trades-table-container">
+                <table class="trades-table">
+                    <thead>
+                        <tr>
+                            <th>Date & Time</th>
+                            <th>Side</th>
+                            <th>Price</th>
+                            <th>Quantity</th>
+                            <th>Trade Size</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tradesTableBody">
+                        <tr>
+                            <td colspan="5" style="text-align: center; color: #64748b;">Loading trades...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Configuration Section -->
+        <div class="card">
+            <h2 class="section-title">Trading Configuration</h2>
+            
+            <form id="configForm">
+                <div class="config-grid">
+                    <div class="input-group">
+                        <label class="input-label" for="tradeSize">Trade Size</label>
+                        <input type="number" class="input-field" id="tradeSize" step="0.001" min="0.001" max="1" value="0.01">
+                        <div class="input-description">Amount of cryptocurrency to trade (0.001 - 1.0)</div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label class="input-label" for="stopLoss">Stop Loss (%)</label>
+                        <input type="number" class="input-field" id="stopLoss" step="0.1" min="0.5" max="10" value="2.0">
+                        <div class="input-description">Maximum loss percentage before auto-sell (0.5% - 10%)</div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label class="input-label" for="stopProfit">Take Profit (%)</label>
+                        <input type="number" class="input-field" id="stopProfit" step="0.1" min="0.5" max="15" value="2.5">
+                        <div class="input-description">Target profit percentage for auto-sell (0.5% - 15%)</div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label class="input-label" for="rsiBuy">RSI Buy Threshold</label>
+                        <input type="number" class="input-field" id="rsiBuy" min="10" max="40" value="30">
+                        <div class="input-description">RSI level to trigger buy signal (10 - 40)</div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label class="input-label" for="rsiSell">RSI Sell Threshold</label>
+                        <input type="number" class="input-field" id="rsiSell" min="60" max="90" value="70">
+                        <div class="input-description">RSI level to trigger sell signal (60 - 90)</div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label class="input-label" for="macdBuy">MACD Buy Threshold</label>
+                        <input type="number" class="input-field" id="macdBuy" step="0.001" min="-0.01" max="0.01" value="0.0">
+                        <div class="input-description">MACD level for buy signals (-0.01 - 0.01)</div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label class="input-label" for="macdSell">MACD Sell Threshold</label>
+                        <input type="number" class="input-field" id="macdSell" step="0.001" min="-0.01" max="0.01" value="0.0">
+                        <div class="input-description">MACD level for sell signals (-0.01 - 0.01)</div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label class="input-label" for="positionSize">Position Size (USD)</label>
+                        <input type="number" class="input-field" id="positionSize" min="10" max="10000" value="100">
+                        <div class="input-description">Maximum USD amount per position ($10 - $10,000)</div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label class="input-label" for="loopInterval">Loop Interval (seconds)</label>
+                        <input type="number" class="input-field" id="loopInterval" min="30" max="300" value="60">
+                        <div class="input-description">Time between trading decisions (30 - 300 seconds)</div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label class="input-label" for="indicatorWindow">Indicator Window</label>
+                        <input type="number" class="input-field" id="indicatorWindow" min="10" max="50" value="26">
+                        <div class="input-description">Period for technical indicators (10 - 50)</div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label class="input-label" for="active">Bot Active</label>
+                        <select class="input-field" id="active">
+                            <option value="1">Yes</option>
+                            <option value="0">No</option>
+                        </select>
+                        <div class="input-description">Enable or disable trading execution</div>
+                    </div>
+                </div>
+                
+                <div class="config-actions">
+                    <button type="button" class="btn btn-secondary" onclick="saveConfiguration()">
+                        <span id="saveText">Save Configuration</span>
+                    </button>
+                    <button type="button" class="btn btn-reset" onclick="resetToDefaults()">
+                        Reset to Defaults
+                    </button>
+                </div>
+            </form>
+            
+            <div class="message" id="configMessage"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.26.0/plotly.min.js"></script>
+    <script src="script.js"></script>
+    <script src="chart-manager.js"></script>
+    
+    <script>
+        // Check authentication on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const authToken = sessionStorage.getItem('authToken');
+            const username = sessionStorage.getItem('username');
+            
+            console.log('🔐 Checking authentication...');
+            console.log('🎫 Token exists:', !!authToken);
+            
+            if (!authToken) {
+                console.log('❌ No auth token, redirecting to login');
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            console.log('✅ Auth token found, loading dashboard');
+            document.getElementById('currentUser').textContent = username || 'User';
+            
+            // Initialize application
+            console.log('🚀 Initializing application...');
+            
+            if (typeof Plotly !== 'undefined') {
+                console.log('📊 Plotly loaded, initializing charts...');
+                initializeChartManager('http://localhost:5000');
+            } else {
+                console.error('❌ Plotly not loaded');
+            }
+        });
+
+        // Logout function
+        function logout() {
+            console.log('👋 Logging out...');
+            
+            fetch('http://localhost:5000/logout', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${sessionStorage.getItem('authToken')}`
+                }
+            }).catch(error => {
+                console.log('Logout API call failed:', error);
+            });
+            
+            sessionStorage.removeItem('authToken');
+            sessionStorage.removeItem('username');
+            window.location.href = 'login.html';
+        }
+    </script>
+</body>
+</html>

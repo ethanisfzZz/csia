@@ -1,0 +1,2 @@
+trade_size,stop_loss,stop_profit,rsi_buy_threshold,rsi_sell_threshold,macd_buy_threshold,macd_sell_threshold,position_size_usdt,active,loop_interval,indicator_window
+0.01,0.02,0.025,30,70,0,0,100,1,60,26
