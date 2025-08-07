@@ -3,7 +3,7 @@ API routes module for the crypto trading bot with authentication.
 
 Citations:
 - Flask web framework: https://flask.palletsprojects.com/
-- Flask-CORS for cross-origin requests: https://flask-cors.readthedocs.io/
+- Manual CORS handling: https://flask.palletsprojects.com/en/2.3.x/patterns/viewdecorators/
 - RESTful API design patterns: https://restfulapi.net/
 - Graceful shutdown with threading: https://docs.python.org/3/library/threading.html
 """
@@ -13,16 +13,28 @@ import csv
 import signal
 import threading
 from flask import Flask, jsonify, request
-from flask_cors import CORS
 from config import trading_state, ORDER_CSV_PATH, THRESHOLD_CSV_PATH, get_indicator_periods
 from file_manager import get_historical_data, load_trading_thresholds, get_current_position_from_orders, get_row_count
 from trading_engine import check_trading_signals_with_thresholds
 
 def create_app():
-    """Create and configure Flask application with CORS support"""
+    """Create and configure Flask application with manual CORS handling"""
     app = Flask(__name__)
-    # enable CORS for all origins - allows frontend to communicate with backend
-    CORS(app, origins=["*"], methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+    
+    @app.after_request
+    def after_request(response):
+        """Add CORS headers to all responses"""
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+        return response
+    
+    @app.route('/options', defaults={'path': ''}, methods=['OPTIONS'])
+    @app.route('/<path:path>', methods=['OPTIONS'])
+    def handle_options(path):
+        """Handle preflight OPTIONS requests for all routes"""
+        return '', 200
+    
     return app
 
 def shutdown_server():

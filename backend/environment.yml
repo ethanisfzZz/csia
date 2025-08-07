@@ -6,5 +6,4 @@ dependencies:
   - colorama
   - requests
   - conda-forge::ta
-  - flask-cors
 prefix: C:\Users\Miru\.conda\envs\csia

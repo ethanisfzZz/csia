@@ -218,7 +218,7 @@ def register_auth_routes(app):
     
     @app.route('/login', methods=['POST', 'OPTIONS'])
     def login():
-        # handle CORS preflight requests
+        # Blocks all requests from frontend to backend WITHOUT Cors headres (Same-Origin policy) 
         if request.method == 'OPTIONS':
             return '', 200
         
@@ -264,7 +264,7 @@ def register_auth_routes(app):
     
     @app.route('/logout', methods=['POST', 'OPTIONS'])
     def logout():
-        # handle CORS preflight requests
+        # Blocks all requests from frontend to backend WITHOUT Cors headres (Same-Origin policy) 
         if request.method == 'OPTIONS':
             return '', 200
         
