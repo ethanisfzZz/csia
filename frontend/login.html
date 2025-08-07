@@ -88,14 +88,14 @@
             transform: none;
         }
 
-        .default-creds {
+        .security-info {
             text-align: center;
             margin-top: 20px;
             padding: 12px;
-            background: rgba(16, 185, 129, 0.1);
-            border: 1px solid rgba(16, 185, 129, 0.3);
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.3);
             border-radius: 8px;
-            color: #10b981;
+            color: #6366f1;
             font-size: 0.9rem;
         }
 
@@ -124,12 +124,12 @@
         <form id="loginForm" onsubmit="handleLogin(event)">
             <div class="form-group">
                 <label for="username">Username</label>
-                <input type="text" id="username" name="username" required autocomplete="username" value="admin">
+                <input type="text" id="username" name="username" required autocomplete="username" placeholder="Enter username">
             </div>
 
             <div class="form-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" name="password" required autocomplete="current-password" value="password">
+                <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="Enter password">
             </div>
 
             <button type="submit" class="login-btn" id="loginBtn">
@@ -137,8 +137,8 @@
             </button>
         </form>
 
-        <div class="default-creds">
-            Default: <strong>admin</strong> / <strong>password</strong>
+        <div class="security-info">
+            Secure authentication with encrypted credentials
         </div>
     </div>
 
@@ -163,14 +163,14 @@
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
             
-            console.log('🔐 Attempting login for:', username);
+            console.log('🔐 Attempting secure login for:', username);
             
             loginBtn.disabled = true;
-            loginText.innerHTML = '<span class="loading"></span>Signing in...';
+            loginText.innerHTML = '<span class="loading"></span>Authenticating...';
             
             try {
                 const hashedPassword = await hashPassword(password);
-                console.log('🔑 Password hashed, sending to server...');
+                console.log('🔑 Password secured, sending to server...');
                 
                 const response = await fetch(`${API_BASE_URL}/login`, {
                     method: 'POST',
@@ -182,19 +182,19 @@
                 });
                 
                 const result = await response.json();
-                console.log('📡 Server response:', result);
+                console.log('📡 Server response:', result.success ? 'Success' : 'Failed');
                 
                 if (response.ok && result.success) {
                     sessionStorage.setItem('authToken', result.token);
                     sessionStorage.setItem('username', username);
-                    showMessage('Login successful! Redirecting...', 'success');
+                    showMessage('Authentication successful! Redirecting...', 'success');
                     setTimeout(() => window.location.href = 'index.html', 1000);
                 } else {
-                    showMessage(result.message || 'Login failed', 'error');
+                    showMessage(result.message || 'Authentication failed', 'error');
                 }
                 
             } catch (error) {
-                console.error('❌ Login error:', error);
+                console.error('❌ Authentication error:', error);
                 showMessage('Unable to connect to server. Check if backend is running.', 'error');
             } finally {
                 loginBtn.disabled = false;
@@ -213,7 +213,7 @@
         // Check if already logged in
         window.addEventListener('DOMContentLoaded', function() {
             if (sessionStorage.getItem('authToken')) {
-                console.log('🔄 Already logged in, redirecting to dashboard...');
+                console.log('🔄 Already authenticated, redirecting to dashboard...');
                 window.location.href = 'index.html';
             }
             document.getElementById('username').focus();

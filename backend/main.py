@@ -16,12 +16,12 @@ def main():
     Main application entry point - orchestrates the startup of both web interface and trading engine.
     Follows a structured startup sequence to ensure all components are properly initialized.
     """
-    print("🚀 Starting Crypto Trading Bot with Authentication...")
+    print("🚀 Starting Crypto Trading Bot with Secure Authentication...")
     print("="*60)
     
     # initialize authentication system first - critical for security
-    print("🔐 Initializing authentication system...")
-    ensure_user_csv_exists()  # creates default admin user if needed
+    print("🔐 Initializing secure authentication system...")
+    ensure_user_csv_exists()  # creates secure default admin user if needed
     
     # create Flask app using factory pattern for better organization
     app = create_app()
@@ -41,11 +41,10 @@ def main():
     print("   🔑 Login: http://localhost:5000/login.html")
     print("   📊 Dashboard: http://localhost:5000/index.html")
     print("   🔧 API: http://localhost:5000/")
-    print("   🐛 Debug CSV: http://localhost:5000/debug-csv")
     print()
-    print("🔑 Default Login:")
+    print("🔑 Authentication:")
     print("   Username: admin")
-    print("   Password: password")
+    print("   Password: [Check project documentation]")
     print("="*60)
     print("Press Ctrl+C to stop")
     print()

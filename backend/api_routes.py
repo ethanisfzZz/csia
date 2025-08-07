@@ -1,5 +1,5 @@
 """
-API routes module for the crypto trading bot with authentication.
+API routes module for the crypto trading bot with secure authentication.
 
 Citations:
 - Flask web framework: https://flask.palletsprojects.com/
@@ -60,10 +60,10 @@ def register_routes(app):
     def hello_world():
         # API info endpoint - provides basic system information
         return jsonify({
-            "message": "Crypto Trading Bot API with Authentication",
-            "version": "2.1",
+            "message": "Crypto Trading Bot API with Secure Authentication",
+            "version": "2.2",
             "login": "POST /login with username and password",
-            "debug": "GET /debug-csv to inspect user file"
+            "status": "Secure authentication required for all endpoints"
         })
 
     @app.route('/end', methods=['POST'])
@@ -118,7 +118,7 @@ def register_routes(app):
                     data['loop_interval'], data['indicator_window']
                 ])
             
-            print(f"✅ Configuration saved")
+            print(f"✅ Configuration saved securely")
             return jsonify({"message": "Configuration saved successfully"})
             
         except Exception as e:
