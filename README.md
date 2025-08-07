@@ -2,69 +2,66 @@
 
 ## Brief Description
 
-
 This trading bot automates Binance cryptocurrency trading for Bitcoin (BTC) with trade logic based on MACD trading. This Bot allows for full customization of trading thresholds to tailor to your trading needs!
-
 
 ## Installation & Setup Guide
 
-### macOS Installation Guide
+### Prerequisites & Repository Setup
+
+1. **Clone the repository**: 
+   ```bash
+   git clone https://github.com/ethanisfzZz/csia
+   cd crypto-trading-bot
+   ```
+
+2. **Install Miniconda**: Download from https://docs.conda.io/en/latest/miniconda.html
+
+3. **Initialize conda** (required for first-time setup):
+   ```bash
+   conda init
+   # Restart your terminal or run: source ~/.bashrc (Linux/Mac) or restart Command Prompt (Windows)
+   ```
+
+### Installation Guide (macOS & Windows)
+
+1. **Extract project files** to a folder (if not using git clone)
+2. **Open Terminal (macOS) or Command Prompt (Windows)** and navigate to the project folder
+3. **Create and activate environment**: 
+   ```bash
+   conda env create -f Backend/environment.yml
+   conda activate csia
+   ```
+4. **Test installation**: `python -c "import pandas, requests, ta, flask; print('Ready!')"`
 
 
 
 
-1. **Install Miniconda**: Download from https://docs.conda.io/en/latest/miniconda.html
-2. **Extract project files** to a folder
-3. **Open Terminal** and navigate to the project folder
-4. **Create environment**: `conda env create -f Backend/environment.yml`
-5. **Activate environment**: `conda activate csia`
-6. **Install web components**: `pip install flask-cors`
-7. **Test installation**: `python -c "import pandas, requests, ta, flask; print('Ready!')"`
 
-### Windows Installation Guide
-
-1. **Install Miniconda**: Download from https://docs.conda.io/en/latest/miniconda.html
-   - ✅ Check "Add to PATH" during installation
-2. **Extract project files** to a folder
-3. **Open Command Prompt** and navigate to the project folder
-4. **Create environment**: `conda env create -f Backend/environment.yml`
-5. **Activate environment**: `conda activate csia`
-6. **Install web components**: `pip install flask-cors`
-7. **Test installation**: `python -c "import pandas, requests, ta, flask; print('Ready!')"`
 
 ### How to Launch Bot
 
 1. **Activate environment**: `conda activate csia`
 2. **Navigate to Backend folder**: `cd Backend`
 3. **Start the bot**: `python main.py`
-4. **Open web interface**: Open `Frontend/index.html` in your browser
-5. **Wait for data collection**: Bot needs 26+ data points before trading (takes ~26 minutes)
-
-
+4. **Navigate to frontend:** `cd Frontend`
+5. **Start PNPM:** `pnpm start`
 
 
 
 
 ## User Guide
 
-### How to Login
+1. **Access web interface**: 
+   - **Option 1**: Open browser to `http://localhost:3000/login.html` 
+   - **Option 2**: Open `Frontend/login.html` in your browser (connects to localhost:5000 API)
+2. **Login**: Use `admin` / `Password123@` for first login
+3. **Wait for data collection**: Bot needs 26+ data points before trading (takes ~26 minutes)
 
-- **Default credentials**: Upon first launch, the default logins are admin:password
-- **Access**: Simply open `Frontend/index.html` in your browser
-
-### How to Start/Stop Bot
-
-**Starting the Bot:**
-- Bot starts automatically when you run `python main.py`
-- Web interface will show "Running" status with green indicator
-- Initial phase: "Collecting data" until X data points gathered (Depending on your configuration, defaults to 26)
 
 **Stopping the Bot:**
 - Click "Stop Bot" button in web interface, OR
 - Press `Ctrl+C` in the terminal running the Python backend
 - Status will change to "Stopped" with red indicator
-
-
 
 ### What the Graph Shows
 
@@ -77,9 +74,6 @@ This trading bot automates Binance cryptocurrency trading for Bitcoin (BTC) with
   - *Insufficient data*: Price line only, collecting data for indicators
   - *Full chart*: Price + trade markers when indicators are ready
 
-
-
-
 ### What the Table Shows
 
 **Trading History Table:**
@@ -89,9 +83,6 @@ This trading bot automates Binance cryptocurrency trading for Bitcoin (BTC) with
 - **Quantity**: Amount of Bitcoin traded
 - **Trade Size**: Position size used for the trade
 - **Most recent trades** appear at the top
-
-
-
 
 ### How to Configure Threshold Values
 
